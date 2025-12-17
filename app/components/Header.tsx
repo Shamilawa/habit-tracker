@@ -3,8 +3,19 @@
 import ThemeToggle from "./ThemeToggle";
 import { useUI } from "../context/UIContext";
 
+import { usePathname } from "next/navigation";
+
 export default function Header() {
     const { openCreateHabitModal } = useUI();
+    const pathname = usePathname();
+
+    const getPageTitle = () => {
+        if (pathname === "/") return "Daily View";
+        if (pathname === "/weekly") return "Weekly Tracker";
+        if (pathname === "/management/habits") return "All Habits";
+        if (pathname === "/dashboard") return "Dashboard";
+        return "Overview";
+    };
 
     return (
         <header className="h-16 flex items-center justify-between px-6 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark z-10">
@@ -20,7 +31,7 @@ export default function Header() {
                         /
                     </span>
                     <span className="text-slate-900 dark:text-white font-medium">
-                        Weekly Tracker
+                        {getPageTitle()}
                     </span>
                 </nav>
             </div>

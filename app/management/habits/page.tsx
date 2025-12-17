@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import CreateHabitModal from "../../components/CreateHabitModal";
 import Icon from "../../components/ui/Icon";
 import { Habit } from "@/app/types/habit";
+import ConfirmationModal from "../../components/ConfirmationModal";
+import { toast } from "sonner";
 
 interface ApiHabit extends Omit<Habit, "dailyStatuses" | "id"> {
     _id: string;
@@ -24,6 +26,7 @@ export default function HabitManagementPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+    const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
 
     const fetchHabits = async () => {
         try {
@@ -51,7 +54,7 @@ export default function HabitManagementPage() {
                     saturday: true,
                 },
                 weeklyProgress: 0,
-                dailyStatuses: {},
+                dailyStatuses: [],
             }));
 
             setHabits(transformedHabits);
@@ -71,18 +74,26 @@ export default function HabitManagementPage() {
         setIsEditModalOpen(true);
     };
 
-    const handleDelete = async (habitId: string) => {
-        if (!confirm("Are you sure you want to delete this habit?")) return;
+    const handleDeleteClick = (habitId: string) => {
+        setHabitToDelete(habitId);
+    };
+
+    const confirmDelete = async () => {
+        if (!habitToDelete) return;
 
         try {
-            const res = await fetch(`/api/habits/${habitId}`, {
+            const res = await fetch(`/api/habits/${habitToDelete}`, {
                 method: "DELETE",
             });
             if (!res.ok) throw new Error("Failed to delete habit");
+
+            toast.success("Habit deleted successfully");
             fetchHabits(); // Refresh list
         } catch (error) {
             console.error("Error deleting habit:", error);
-            alert("Failed to delete habit");
+            toast.error("Failed to delete habit");
+        } finally {
+            setHabitToDelete(null);
         }
     };
 
@@ -102,13 +113,6 @@ export default function HabitManagementPage() {
                         Create, edit, and delete your habits.
                     </p>
                 </div>
-                <button
-                    onClick={handleCreate}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm hover:shadow-md"
-                >
-                    <Icon name="add" className="text-xl" />
-                    New Habit
-                </button>
             </div>
 
             <div className="flex-1 overflow-auto bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm">
@@ -185,7 +189,7 @@ export default function HabitManagementPage() {
                                         </button>
                                         <button
                                             onClick={() =>
-                                                handleDelete(habit.id)
+                                                handleDeleteClick(habit.id)
                                             }
                                             className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                             title="Delete"
@@ -212,9 +216,20 @@ export default function HabitManagementPage() {
                     onSuccess={() => {
                         fetchHabits();
                         setIsEditModalOpen(false);
+                        toast.success(selectedHabit ? "Habit updated successfully" : "Habit created successfully");
                     }}
                 />
             )}
+
+            <ConfirmationModal
+                isOpen={!!habitToDelete}
+                onClose={() => setHabitToDelete(null)}
+                onConfirm={confirmDelete}
+                title="Delete Habit"
+                message="Are you sure you want to delete this habit? This action cannot be undone."
+                confirmText="Delete"
+                isDestructive={true}
+            />
         </div>
     );
 }

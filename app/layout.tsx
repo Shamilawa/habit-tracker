@@ -5,6 +5,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { UIProvider } from "./context/UIContext";
 import CreateHabitModal from "./components/CreateHabitModal";
+import { Toaster } from "sonner";
 
 const inter = Inter({
     subsets: ["latin"],
@@ -42,6 +43,7 @@ export default function RootLayout({
                         </main>
                     </div>
                     <CreateHabitModal />
+                    <Toaster position="top-right" richColors />
                 </UIProvider>
             </body>
         </html>
