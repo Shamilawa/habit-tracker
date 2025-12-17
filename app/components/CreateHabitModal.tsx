@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUI } from "../context/UIContext";
 import { Habit } from "@/app/types/habit"; // Import Habit type
+import { toast } from "sonner";
 
 const ICONS = [
     "directions_run",
@@ -199,7 +200,7 @@ export default function CreateHabitModal({
         const goal = selectedDays.filter((d) => d).length; // Count selected days
 
         if (!name || (categoryMode === "input" && !category) || goal === 0) {
-            alert("Please fill in all fields");
+            toast.error("Please fill in all fields");
             setIsSubmitting(false);
             return;
         }
@@ -255,7 +256,7 @@ export default function CreateHabitModal({
             }
         } catch (error) {
             console.error(error);
-            alert("Failed to save habit");
+            toast.error("Failed to save habit");
         } finally {
             setIsSubmitting(false);
         }
@@ -266,10 +267,10 @@ export default function CreateHabitModal({
             <div className="bg-white dark:bg-surface-dark rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                        Create New Habit
+                        {initialData ? "Edit Habit" : "Create New Habit"}
                     </h2>
                     <button
-                        onClick={closeCreateHabitModal}
+                        onClick={handleClose}
                         className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                     >
                         <span className="material-icons-round">close</span>
@@ -348,11 +349,10 @@ export default function CreateHabitModal({
                                         key={index}
                                         type="button"
                                         onClick={() => toggleDay(index)}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
-                                            selectedDays[index]
-                                                ? "bg-primary text-white shadow-sm"
-                                                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                        }`}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${selectedDays[index]
+                                            ? "bg-primary text-white shadow-sm"
+                                            : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                            }`}
                                     >
                                         {day}
                                     </button>
@@ -372,11 +372,10 @@ export default function CreateHabitModal({
                                     key={icon}
                                     type="button"
                                     onClick={() => setSelectedIcon(icon)}
-                                    className={`p-2 rounded-lg flex items-center justify-center transition-all ${
-                                        selectedIcon === icon
-                                            ? "bg-indigo-100 text-indigo-600 ring-2 ring-indigo-600"
-                                            : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    }`}
+                                    className={`p-2 rounded-lg flex items-center justify-center transition-all ${selectedIcon === icon
+                                        ? "bg-indigo-100 text-indigo-600 ring-2 ring-indigo-600"
+                                        : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                        }`}
                                 >
                                     <span className="material-icons-round text-xl">
                                         {icon}
@@ -397,11 +396,10 @@ export default function CreateHabitModal({
                                     key={color.name}
                                     type="button"
                                     onClick={() => setSelectedColor(color)}
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                                        selectedColor.name === color.name
-                                            ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-900"
-                                            : ""
-                                    }`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor.name === color.name
+                                        ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-900"
+                                        : ""
+                                        }`}
                                 >
                                     <div
                                         className={`w-full h-full rounded-full ${color.class}`}
@@ -414,7 +412,7 @@ export default function CreateHabitModal({
                     <div className="pt-4 flex gap-4">
                         <button
                             type="button"
-                            onClick={closeCreateHabitModal}
+                            onClick={handleClose}
                             className="flex-1 py-3 px-4 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                         >
                             Cancel
@@ -424,7 +422,13 @@ export default function CreateHabitModal({
                             disabled={isSubmitting}
                             className="flex-1 py-3 px-4 rounded-xl bg-primary text-white font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? "Creating..." : "Create Habit"}
+                            {isSubmitting
+                                ? initialData
+                                    ? "Saving..."
+                                    : "Creating..."
+                                : initialData
+                                    ? "Save Changes"
+                                    : "Create Habit"}
                         </button>
                     </div>
                 </form>
