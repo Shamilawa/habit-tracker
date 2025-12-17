@@ -11,6 +11,15 @@ export function getHabitsForWeek(weekDays: string[]): Habit[] {
             icon: "directions_run",
             iconColorClass: "text-blue-600 dark:text-blue-400",
             iconBgClass: "bg-blue-100 dark:bg-blue-900/50",
+            frequency: {
+                sunday: true,
+                monday: true,
+                tuesday: true,
+                wednesday: true,
+                thursday: true,
+                friday: true,
+                saturday: true,
+            },
             goal: 7,
             weeklyProgress: 5,
             dailyStatuses: weekDays.map((date, index) => ({
@@ -30,6 +39,15 @@ export function getHabitsForWeek(weekDays: string[]): Habit[] {
             icon: "menu_book",
             iconColorClass: "text-purple-600 dark:text-purple-400",
             iconBgClass: "bg-purple-100 dark:bg-purple-900/50",
+            frequency: {
+                sunday: true,
+                monday: true,
+                tuesday: true,
+                wednesday: true,
+                thursday: true,
+                friday: true,
+                saturday: true,
+            },
             goal: 7,
             weeklyProgress: 7,
             dailyStatuses: weekDays.map((date, index) => ({
@@ -45,6 +63,15 @@ export function getHabitsForWeek(weekDays: string[]): Habit[] {
             icon: "laptop_mac",
             iconColorClass: "text-orange-600 dark:text-orange-400",
             iconBgClass: "bg-orange-100 dark:bg-orange-900/50",
+            frequency: {
+                sunday: true,
+                monday: true,
+                tuesday: true,
+                wednesday: true,
+                thursday: true,
+                friday: true,
+                saturday: true,
+            },
             goal: 5,
             weeklyProgress: 5,
             dailyStatuses: weekDays.map((date, index) => ({
@@ -59,6 +86,15 @@ export function getHabitsForWeek(weekDays: string[]): Habit[] {
             icon: "self_improvement",
             iconColorClass: "text-teal-600 dark:text-teal-400",
             iconBgClass: "bg-teal-100 dark:bg-teal-900/50",
+            frequency: {
+                sunday: true,
+                monday: true,
+                tuesday: true,
+                wednesday: true,
+                thursday: true,
+                friday: true,
+                saturday: true,
+            },
             goal: 7,
             weeklyProgress: 7,
             dailyStatuses: weekDays.map((date, index) => ({
