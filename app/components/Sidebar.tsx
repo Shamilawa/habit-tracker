@@ -8,6 +8,11 @@ const NAV_SECTIONS = [
         title: "Overview",
         items: [
             {
+                name: "Today",
+                icon: "today",
+                href: "/",
+            },
+            {
                 name: "Dashboard",
                 icon: "dashboard",
                 href: "/dashboard", // Placeholder, defaulting to non-active usually unless matched
@@ -15,7 +20,7 @@ const NAV_SECTIONS = [
             {
                 name: "Weekly Tracker",
                 icon: "calendar_view_week",
-                href: "/",
+                href: "/weekly",
             },
             {
                 name: "Analytics",
@@ -77,14 +82,14 @@ export default function Sidebar() {
                                     key={item.name}
                                     href={item.href}
                                     className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors group ${active
-                                            ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-dark ring-1 ring-inset ring-primary/20"
-                                            : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100"
+                                        ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-dark ring-1 ring-inset ring-primary/20"
+                                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100"
                                         }`}
                                 >
                                     <span
                                         className={`material-icons-round ${active
-                                                ? ""
-                                                : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+                                            ? ""
+                                            : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"
                                             }`}
                                     >
                                         {item.icon}
