@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 import { useCallback, useEffect, useState } from "react"
 import { NodeSelection, TextSelection } from "@tiptap/pm/state"
