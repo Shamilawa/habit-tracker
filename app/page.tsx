@@ -234,8 +234,12 @@ export default function Home() {
     };
 
     const handleToday = () => {
-        setJournalContent(""); // Clear immediately to prevent stale data
-        setDate(new Date());
+        const today = new Date();
+        const todayStr = getYyyyMmDd(today);
+        if (todayStr !== dateString) {
+            setJournalContent(""); // Clear immediately to prevent stale data
+            setDate(today);
+        }
     };
 
     const completedCount = activeHabits.filter(h => getHabitStatus(h) === "completed").length;
