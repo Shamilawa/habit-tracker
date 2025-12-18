@@ -77,36 +77,7 @@ body,
   /* Ensure positioning context */
 }
 
-/* Placeholder watermark styling */
-.simple-editor-content .tiptap.ProseMirror.simple-editor.is-editor-empty>p.is-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: var(--tt-theme-text);
-  pointer-events: none;
-  height: 0;
 
-  /* Centering */
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  width: 80%;
-  max-width: 600px;
-
-  /* Watermark look */
-  opacity: 0.3;
-  font-size: 1.5rem;
-  line-height: 1.4;
-  font-weight: 500;
-  font-family: inherit;
-}
-
-/* Force hide if editor is not empty */
-.simple-editor-content .tiptap.ProseMirror.simple-editor:not(.is-editor-empty) p.is-empty::before {
-  content: none !important;
-  display: none !important;
-}
 
 @media screen and (max-width: 480px) {
   .simple-editor-content .tiptap.ProseMirror.simple-editor {
