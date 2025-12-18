@@ -15,8 +15,8 @@ import {
 import { useUI } from "../context/UIContext";
 import { StatsSkeleton, TableGridSkeleton } from "../components/ui/Skeleton";
 
-interface ApiHabit extends Omit<Habit, "dailyStatuses" | "id"> {
-    _id: string;
+interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
+    _id?: string;
     frequency: {
         sunday: boolean;
         monday: boolean;
@@ -81,7 +81,8 @@ export default function WeeklyTrackerPage() {
                     ).length;
 
                     return {
-                        id: apiHabit._id,
+                        id: apiHabit.id || apiHabit._id!,
+                        _id: apiHabit.id || apiHabit._id!,
                         name: apiHabit.name,
                         category: apiHabit.category,
                         icon: apiHabit.icon,

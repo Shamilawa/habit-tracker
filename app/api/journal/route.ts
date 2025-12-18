@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
-import Day from "@/models/Day";
+import { db } from "@/lib/firebase-admin";
+import { dayConverter } from "@/models/Day";
 
 export async function GET(req: NextRequest) {
     try {
-        await dbConnect();
         const { searchParams } = new URL(req.url);
         const date = searchParams.get("date");
 
@@ -15,7 +14,10 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        const day = await Day.findOne({ date });
+        // Use date as standard document ID for easy lookup
+        const docRef = db.collection("journal").doc(date).withConverter(dayConverter);
+        const docSnap = await docRef.get();
+        const day = docSnap.data();
 
         return NextResponse.json({
             date,
@@ -32,7 +34,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        await dbConnect();
         const body = await req.json();
         const { date, content } = body;
 
@@ -43,13 +44,12 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const day = await Day.findOneAndUpdate(
-            { date },
-            { content },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+        const docRef = db.collection("journal").doc(date).withConverter(dayConverter);
 
-        return NextResponse.json(day);
+        await docRef.set({ date, content }, { merge: true });
+
+        // Return structured data
+        return NextResponse.json({ date, content });
     } catch (error) {
         console.error("Error saving journal entry:", error);
         return NextResponse.json(
