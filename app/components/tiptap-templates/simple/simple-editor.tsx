@@ -14,7 +14,6 @@ import { Highlight } from "@tiptap/extension-highlight"
 import { Subscript } from "@tiptap/extension-subscript"
 import { Superscript } from "@tiptap/extension-superscript"
 import { Selection } from "@tiptap/extensions"
-import { Placeholder } from "@tiptap/extension-placeholder"
 
 // --- UI Primitives ---
 import { Button } from "@/app/components/tiptap-ui-primitive/button"
@@ -77,6 +76,7 @@ import "@/app/components/tiptap-templates/simple/simple-editor.scss"
 
 // --- Icons --- (Adding Icon from app/components/ui/Icon)
 import Icon from "@/app/components/ui/Icon";
+import { TextEditorOverlayPlaceholder } from "@/app/components/TextEditorOverlayPlaceholder";
 
 interface SimpleEditorProps {
   content: string;
@@ -231,9 +231,7 @@ export function SimpleEditor({
           enableClickSelection: true,
         },
       }),
-      Placeholder.configure({
-        placeholder: "Add a note for today, Especially event or something memorable. This will help you look back in the future",
-      }),
+
       HorizontalRule,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       TaskList,
@@ -273,8 +271,20 @@ export function SimpleEditor({
   }, [isMobile, mobileView])
 
   return (
-    <div className="simple-editor-wrapper">
+    <div className="simple-editor-wrapper relative">
       <EditorContext.Provider value={{ editor }}>
+        {editor && editor.isEmpty && !editor.isFocused && ( // Added isFocused check to hide when typing starts if desired, but user said 'when there is no note'. Usually overlays should persist until content exists? "when click on the Today button... get removed and show the watermark". If I type, IsEmpty becomes false.
+          // Wait, simple 'editor.isEmpty' is reactive only if we force update or use editor state. 
+          // EditorContent updates. But this is outside.
+          // However, we are in a functional component. 'editor' object refs don't change often.
+          // We need a forceUpdate or state. SimpleEditor re-renders when 'content' prop changes from parent.
+          // But typing in editor does NOT change 'content' prop immediately unless 'onUpdate' calls 'onChange' and parent updates 'content' prop back down.
+          // The usage in 'app/page.tsx' creates that loop: onChange={setJournalContent} content={journalContent}.
+          // So 'content' prop updates on every keystroke. 
+          // Thus 'editor.isEmpty' status check in render body is fine.
+          // Let's also check strict equality to empty paragraph? editor.isEmpty does that.
+          <TextEditorOverlayPlaceholder />
+        )}
         <Toolbar
           ref={toolbarRef}
           style={{
