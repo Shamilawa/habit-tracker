@@ -267,27 +267,27 @@ export default function Home() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-1 border border-border-light dark:border-border-dark shadow-sm">
-                        <button
-                            onClick={handlePrevDay}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        >
-                            <Icon name="chevron_left" className="text-lg" />
-                        </button>
-                        <button
-                            onClick={handleToday}
-                            className="px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        >
-                            Today
-                        </button>
-                        <button
-                            onClick={handleNextDay}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        >
-                            <Icon name="chevron_right" className="text-lg" />
-                        </button>
-                    </div>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={handlePrevDay}
+                        className="flex items-center justify-center p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-all active:scale-90"
+                        title="Previous Day"
+                    >
+                        <Icon name="chevron_left" className="text-xl" />
+                    </button>
+                    <button
+                        onClick={handleToday}
+                        className="flex items-center justify-center px-3 py-1.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-all active:scale-95 uppercase tracking-wider h-full"
+                    >
+                        Today
+                    </button>
+                    <button
+                        onClick={handleNextDay}
+                        className="flex items-center justify-center p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-all active:scale-90"
+                        title="Next Day"
+                    >
+                        <Icon name="chevron_right" className="text-xl" />
+                    </button>
                 </div>
             </header>
 
