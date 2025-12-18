@@ -1,66 +1,86 @@
+"use client";
 
-import { redirect } from "next/navigation";
-import { db } from "@/lib/firebase-admin";
-import { habitConverter } from "@/models/Habit";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/context/AuthContext";
 import Dashboard from "./components/Dashboard";
-import { Habit } from "./types/habit";
+import { Habit } from "@/app/types/habit";
+import Icon from "@/app/components/ui/Icon";
 
-// This is a Server Component
-export default async function Home() {
-    try {
-        const habitsRef = db.collection("habits").withConverter(habitConverter);
-        const snapshot = await habitsRef.get();
-        const habits = snapshot.docs.map((doc) => doc.data());
-
-        if (habits.length === 0) {
-            redirect("/onboard");
-        }
-
-        // Transform for client (serialize timestamps etc if needed, though here we mostly have simple types)
-        // Ensure _id/id is consistent
-        const transformedHabits: Habit[] = habits.map((h) => ({
-            id: h.id!,
-            _id: h.id!,
-            name: h.name,
-            category: h.category,
-            icon: h.icon,
-            iconColorClass: h.iconColorClass,
-            iconBgClass: h.iconBgClass,
-            goal: h.goal,
-            frequency: h.frequency || {
-                sunday: true,
-                monday: true,
-                tuesday: true,
-                wednesday: true,
-                thursday: true,
-                friday: true,
-                saturday: true,
-            },
-            weeklyProgress: 0,
-            dailyStatuses: h.history.map((hist: any) => ({
-                date: hist.date, // YYYY-MM-DD
-                status: hist.status as any
-            })),
-        }));
-
-        return <Dashboard initialHabits={transformedHabits} />;
-
-    } catch (error) {
-        console.error("Error fetching habits on server:", error);
-        // Fallback or error page logic, but if redirect throws, Next.js handles it.
-        // We need to re-throw redirect error
-        if (isRedirectError(error)) {
-            throw error;
-        }
-
-        return (
-            <div className="flex h-screen items-center justify-center text-red-500">
-                Failed to load application data.
+function Loading() {
+    return (
+        <div className="flex h-screen items-center justify-center bg-background-light dark:bg-background-dark">
+            <div className="animate-spin text-primary">
+                <Icon name="loader" className="text-4xl" />
             </div>
-        );
-    }
+        </div>
+    );
 }
 
-function isRedirectError(error: any) {
-    return error?.digest?.startsWith?.('NEXT_REDIRECT');
+export default function Home() {
+    const { user, loading } = useAuth();
+    const router = useRouter();
+    const [habits, setHabits] = useState<Habit[]>([]);
+    const [fetching, setFetching] = useState(true);
+
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push("/login");
+        }
+    }, [user, loading, router]);
+
+    useEffect(() => {
+        if (user) {
+            const fetchHabits = async () => {
+                setFetching(true);
+                try {
+                    const token = await user.getIdToken();
+                    const res = await fetch("/api/habits", {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const rawHabits = await res.json();
+                        // Transform logic consistent with previous server implementation
+                        const transformed: Habit[] = rawHabits.map((h: any) => ({
+                            id: h.id || h._id,
+                            _id: h.id || h._id,
+                            userId: h.userId,
+                            name: h.name,
+                            category: h.category,
+                            icon: h.icon,
+                            iconColorClass: h.iconColorClass,
+                            iconBgClass: h.iconBgClass,
+                            goal: h.goal,
+                            frequency: h.frequency || {
+                                sunday: true, monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true
+                            },
+                            weeklyProgress: 0,
+                            dailyStatuses: h.history ? h.history.map((hist: any) => ({
+                                date: hist.date, // YYYY-MM-DD
+                                status: hist.status
+                            })) : [],
+                        }));
+                        setHabits(transformed);
+
+                        // If no habits, redirect to onboard
+                        if (transformed.length === 0) {
+                            router.push("/onboard");
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    setFetching(false);
+                }
+            };
+            fetchHabits();
+        } else if (!loading) {
+            // No user, not loading -> handled by redirect effect, but stop fetching spinner
+            setFetching(false);
+        }
+    }, [user, loading, router]);
+
+    if (loading || fetching) return <Loading />;
+
+    return <Dashboard initialHabits={habits} />;
 }

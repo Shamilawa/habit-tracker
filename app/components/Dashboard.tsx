@@ -8,6 +8,7 @@ import Editor from "./Editor";
 import { Habit } from "@/app/types/habit";
 import { cn } from "@/lib/utils";
 import { HabitSkeleton, JournalSkeleton } from "./ui/Skeleton";
+import { useAuth } from "@/app/context/AuthContext";
 
 // Helper for date formatting
 const formatDate = (date: Date) => {
@@ -46,6 +47,7 @@ interface DashboardProps {
 
 export default function Dashboard({ initialHabits }: DashboardProps) {
     const router = useRouter();
+    const { user } = useAuth();
     const [date, setDate] = useState(new Date());
     const [habits, setHabits] = useState<Habit[]>(initialHabits);
     const [journalContent, setJournalContent] = useState("");
@@ -55,13 +57,23 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
 
     const dateString = useMemo(() => getYyyyMmDd(date), [date]);
 
+    // Update habits when initialHabits changes (e.g. from fetch in parent)
+    useEffect(() => {
+        setHabits(initialHabits);
+    }, [initialHabits]);
+
     // Fetch Journal
     useEffect(() => {
         const fetchJournal = async () => {
+            if (!user) return;
+
             setIsJournalLoading(true);
             setJournalContent(""); // Clear content to avoid stale data in Editor
             try {
-                const res = await fetch(`/api/journal?date=${dateString}`);
+                const token = await user.getIdToken();
+                const res = await fetch(`/api/journal?date=${dateString}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
                 const data = await res.json();
                 if (data.content) {
                     setJournalContent(data.content);
@@ -76,16 +88,20 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         };
 
         fetchJournal();
-    }, [dateString]);
+    }, [dateString, user]);
 
     const handleSaveJournal = async () => {
-        if (!journalContent) return;
+        if (!journalContent || !user) return;
 
         setIsSaving(true);
         try {
+            const token = await user.getIdToken();
             const res = await fetch("/api/journal", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify({ date: dateString, content: journalContent }),
             });
             if (!res.ok) throw new Error("Failed to save");
@@ -147,9 +163,14 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         });
 
         try {
+            if (!user) return;
+            const token = await user.getIdToken();
             const res = await fetch(`/api/habits/${habitId}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify({ date: dateString, status: newStatus }),
             });
 

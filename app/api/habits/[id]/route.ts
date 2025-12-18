@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import { habitConverter } from "@/models/Habit";
+import { getAuth } from "firebase-admin/auth";
+
+const verifyToken = async (request: Request) => {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return null;
+    const token = authHeader.split("Bearer ")[1];
+    try {
+        const decodedToken = await getAuth().verifyIdToken(token);
+        return decodedToken.uid;
+    } catch (error) {
+        console.error("Error verifying token:", error);
+        return null;
+    }
+};
 
 export async function PUT(
     request: Request,
@@ -9,6 +23,11 @@ export async function PUT(
     const { id } = await params;
 
     try {
+        const userId = await verifyToken(request);
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const body = await request.json();
         const docRef = db.collection("habits").doc(id).withConverter(habitConverter);
         const docSnap = await docRef.get();
@@ -19,6 +38,10 @@ export async function PUT(
                 { error: "Habit not found" },
                 { status: 404 }
             );
+        }
+
+        if (habit.userId !== userId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         // Check if it's a history update (tracking) vs general update
@@ -65,6 +88,11 @@ export async function DELETE(
     const { id } = await params;
 
     try {
+        const userId = await verifyToken(request);
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const docRef = db.collection("habits").doc(id);
         const docSnap = await docRef.get();
 
@@ -73,6 +101,15 @@ export async function DELETE(
                 { error: "Habit not found" },
                 { status: 404 }
             );
+        }
+
+        // Check ownership
+        // Note: We need data to check ownership, so we fetch it. 
+        // We can't use converter here easily unless we cast or redefine ref, 
+        // but raw data is fine for userId check if we know the field name.
+        const data = docSnap.data();
+        if (data?.userId !== userId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         await docRef.delete();

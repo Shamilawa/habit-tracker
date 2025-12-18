@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Icon from "../components/ui/Icon";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/app/context/AuthContext";
 
 const CATEGORIES = [
     { name: "Health", icon: "directions_run", color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/50" },
@@ -17,6 +18,7 @@ const CATEGORIES = [
 
 export default function Onboard() {
     const router = useRouter();
+    const { user } = useAuth(); // Get user
     const [step, setStep] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -53,6 +55,12 @@ export default function Onboard() {
 
         setIsLoading(true);
         try {
+            if (!user) {
+                toast.error("You must be logged in");
+                return;
+            }
+            const token = await user.getIdToken();
+
             const newHabit = {
                 name: formData.name,
                 category: formData.category.name,
@@ -66,7 +74,10 @@ export default function Onboard() {
 
             const res = await fetch("/api/habits", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify(newHabit),
             });
 

@@ -8,6 +8,7 @@ export interface DailyStatus {
 export interface Habit {
     id: string;
     _id?: string; // Optional MongoDB ID
+    userId: string; // Firebase User UID
     name: string;
     category: string;
     icon: string;

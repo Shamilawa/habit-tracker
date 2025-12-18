@@ -17,6 +17,7 @@ export interface IHabitHistory {
 
 export interface IHabit {
     id?: string;
+    userId: string;
     name: string;
     category: string;
     icon: string;
@@ -30,7 +31,7 @@ export interface IHabit {
 export const habitConverter = {
     toFirestore(habit: IHabit): DocumentData {
         const { id, ...data } = habit;
-        return data;
+        return data; // userId is already in data
     },
     fromFirestore(
         snapshot: QueryDocumentSnapshot
@@ -38,6 +39,7 @@ export const habitConverter = {
         const data = snapshot.data();
         return {
             id: snapshot.id,
+            userId: data.userId,
             name: data.name,
             category: data.category,
             icon: data.icon,

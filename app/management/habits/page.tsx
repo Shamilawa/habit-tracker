@@ -7,6 +7,7 @@ import { Habit } from "@/app/types/habit";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import { toast } from "sonner";
 import { TableRowSkeleton } from "../../components/ui/Skeleton";
+import { useAuth } from "@/app/context/AuthContext";
 
 interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
     // Frequency matches exactly
@@ -23,6 +24,7 @@ interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
 }
 
 export default function HabitManagementPage() {
+    const { user } = useAuth();
     const [habits, setHabits] = useState<Habit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -31,7 +33,11 @@ export default function HabitManagementPage() {
 
     const fetchHabits = async () => {
         try {
-            const res = await fetch("/api/habits");
+            if (!user) return;
+            const token = await user.getIdToken();
+            const res = await fetch("/api/habits", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (!res.ok) throw new Error("Failed to fetch habits");
             const data: ApiHabit[] = await res.json();
 
@@ -45,6 +51,7 @@ export default function HabitManagementPage() {
                 iconColorClass: h.iconColorClass,
                 iconBgClass: h.iconBgClass,
                 goal: h.goal,
+                userId: h.userId, // Include userId
                 frequency: h.frequency || {
                     sunday: true,
                     monday: true,
@@ -67,8 +74,9 @@ export default function HabitManagementPage() {
     };
 
     useEffect(() => {
-        fetchHabits();
-    }, []);
+        if (user) fetchHabits();
+        else setIsLoading(false);
+    }, [user]);
 
     const handleEdit = (habit: Habit) => {
         setSelectedHabit(habit);
@@ -80,11 +88,13 @@ export default function HabitManagementPage() {
     };
 
     const confirmDelete = async () => {
-        if (!habitToDelete) return;
+        if (!habitToDelete || !user) return;
 
         try {
+            const token = await user.getIdToken();
             const res = await fetch(`/api/habits/${habitToDelete}`, {
                 method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
             });
             if (!res.ok) throw new Error("Failed to delete habit");
 
