@@ -216,22 +216,7 @@ export default function Onboard() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Daily Goal (Minutes/Times)</label>
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => setFormData(prev => ({ ...prev, goal: Math.max(1, prev.goal - 1) }))}
-                                        className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 text-2xl"
-                                    >-</button>
-                                    <div className="flex-1 text-center font-mono text-3xl font-bold text-slate-800 dark:text-slate-200">
-                                        {formData.goal}
-                                    </div>
-                                    <button
-                                        onClick={() => setFormData(prev => ({ ...prev, goal: prev.goal + 1 }))}
-                                        className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 text-2xl"
-                                    >+</button>
-                                </div>
-                            </div>
+
 
                             <div className="flex gap-4 mt-8 pt-4">
                                 <button onClick={handleBack} className="px-6 py-3 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium transition-colors">Back</button>

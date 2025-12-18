@@ -240,13 +240,13 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
             {/* Main Content Area */}
             <div className="flex-1 flex overflow-hidden">
                 {/* Left Panel: Habit List */}
-                <div className="w-1/3 min-w-[350px] border-r border-border-light dark:border-border-dark flex flex-col bg-slate-50/30 dark:bg-slate-900/10">
+                <div className="w-1/4 min-w-[350px] border-r border-border-light dark:border-border-dark flex flex-col bg-slate-50/30 dark:bg-slate-900/10">
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Routine Summary</h2>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {activeHabits.length === 0 ? (
                                 <div className="text-center py-8 text-sm text-slate-500">
                                     No habits scheduled for today.
@@ -258,15 +258,15 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
                                     const isFailed = status === "failed";
 
                                     return (
-                                        <div key={habit.id} className="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex items-center justify-between group hover:border-blue-200 dark:hover:border-blue-900/50 transition-colors">
-                                            <div className="flex items-center gap-4">
+                                        <div key={habit.id} className="group flex items-center justify-between p-3 bg-white dark:bg-surface-dark rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                                            <div className="flex items-center gap-3">
                                                 <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center transition-colors", habit.iconBgClass, habit.iconColorClass)}>
                                                     <Icon name={habit.icon} className="text-xl" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-semibold text-slate-900 dark:text-white text-sm">{habit.name}</h3>
+                                                    <h3 className="font-medium text-slate-900 dark:text-white text-sm">{habit.name}</h3>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                        {habit.goal > 0 ? `${habit.goal} mins target` : "Daily task"}
+                                                        {habit.goal > 0 ? `${habit.goal} mins` : "Daily"}
                                                     </p>
                                                 </div>
                                             </div>
@@ -285,7 +285,7 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
                                             >
                                                 {isCompleted && <Icon name="check" className="text-sm font-bold" />}
                                                 {isFailed && <Icon name="close" className="text-sm font-bold" />}
-                                                {!isCompleted && !isFailed && <Icon name="check" className={cn("text-sm opacity-0 hover:opacity-100", habit.iconColorClass)} />}
+                                                {!isCompleted && !isFailed && <Icon name="check" className={cn("text-sm font-bold opacity-0 hover:opacity-100 transition-opacity", habit.iconColorClass)} />}
                                             </button>
                                         </div>
                                     );

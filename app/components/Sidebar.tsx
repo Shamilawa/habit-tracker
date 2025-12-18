@@ -57,7 +57,7 @@ export default function Sidebar() {
 
     return (
         <aside className="hidden md:flex flex-col w-64 border-r border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark transition-colors duration-300 z-20">
-            <div className="h-16 flex items-center px-6 border-b border-border-light dark:border-border-dark">
+            <div className="h-[64px] shrink-0 flex items-center px-6 border-b border-border-light dark:border-border-dark">
                 <div className="flex items-center gap-2 text-primary dark:text-primary-dark font-bold text-xl tracking-tight">
                     <span className="material-icons-round text-2xl">
                         insights
