@@ -8,8 +8,8 @@ import ConfirmationModal from "../../components/ConfirmationModal";
 import { toast } from "sonner";
 import { TableRowSkeleton } from "../../components/ui/Skeleton";
 
-interface ApiHabit extends Omit<Habit, "dailyStatuses" | "id"> {
-    _id: string;
+interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
+    // Frequency matches exactly
     frequency: {
         sunday: boolean;
         monday: boolean;
@@ -37,8 +37,8 @@ export default function HabitManagementPage() {
 
             // Transform
             const transformedHabits: Habit[] = data.map((h) => ({
-                id: h._id,
-                _id: h._id,
+                id: h.id,
+                _id: h.id,
                 name: h.name,
                 category: h.category,
                 icon: h.icon,
