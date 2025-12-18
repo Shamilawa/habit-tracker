@@ -6,6 +6,7 @@ import Icon from "./components/ui/Icon";
 import Editor from "./components/Editor";
 import { Habit } from "@/app/types/habit";
 import { cn } from "@/lib/utils";
+import { HabitSkeleton, JournalSkeleton } from "./components/ui/Skeleton";
 
 // Helper for date formatting
 const formatDate = (date: Date) => {
@@ -72,6 +73,7 @@ export default function Home() {
     // Fetch Habits
     useEffect(() => {
         const fetchHabits = async () => {
+            setIsLoading(true);
             try {
                 const res = await fetch("/api/habits");
                 if (!res.ok) throw new Error("Failed to fetch habits");
@@ -106,6 +108,8 @@ export default function Home() {
             } catch (error) {
                 console.error("Error fetching habits:", error);
                 toast.error("Failed to load habits");
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -230,8 +234,12 @@ export default function Home() {
     };
 
     const handleToday = () => {
-        setJournalContent(""); // Clear immediately to prevent stale data
-        setDate(new Date());
+        const today = new Date();
+        const todayStr = getYyyyMmDd(today);
+        if (todayStr !== dateString) {
+            setJournalContent(""); // Clear immediately to prevent stale data
+            setDate(today);
+        }
     };
 
     const completedCount = activeHabits.filter(h => getHabitStatus(h) === "completed").length;
@@ -263,27 +271,27 @@ export default function Home() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-1 border border-border-light dark:border-border-dark shadow-sm">
-                        <button
-                            onClick={handlePrevDay}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        >
-                            <Icon name="chevron_left" className="text-lg" />
-                        </button>
-                        <button
-                            onClick={handleToday}
-                            className="px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        >
-                            Today
-                        </button>
-                        <button
-                            onClick={handleNextDay}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        >
-                            <Icon name="chevron_right" className="text-lg" />
-                        </button>
-                    </div>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={handlePrevDay}
+                        className="flex items-center justify-center p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-all active:scale-90"
+                        title="Previous Day"
+                    >
+                        <Icon name="chevron_left" className="text-xl" />
+                    </button>
+                    <button
+                        onClick={handleToday}
+                        className="flex items-center justify-center px-3 py-1.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-all active:scale-95 uppercase tracking-wider h-full"
+                    >
+                        Today
+                    </button>
+                    <button
+                        onClick={handleNextDay}
+                        className="flex items-center justify-center p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-all active:scale-90"
+                        title="Next Day"
+                    >
+                        <Icon name="chevron_right" className="text-xl" />
+                    </button>
                 </div>
             </header>
 
@@ -297,7 +305,13 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-3">
-                            {activeHabits.length === 0 ? (
+                            {isLoading ? (
+                                <>
+                                    <HabitSkeleton />
+                                    <HabitSkeleton />
+                                    <HabitSkeleton />
+                                </>
+                            ) : activeHabits.length === 0 ? (
                                 <div className="text-center py-8 text-sm text-slate-500">
                                     No habits scheduled for today.
                                 </div>
@@ -348,14 +362,18 @@ export default function Home() {
                 {/* Right Panel: Journal Editor */}
                 <div className="flex-1 flex flex-col h-full bg-background-light dark:bg-background-dark overflow-hidden">
                     <div className="flex-1 h-full">
-                        <Editor
-                            key={dateString}
-                            content={journalContent}
-                            onChange={setJournalContent}
-                            onSave={handleSaveJournal}
-                            lastSavedRequestAt={lastSaved}
-                            isSaving={isSaving}
-                        />
+                        {isLoading ? (
+                            <JournalSkeleton />
+                        ) : (
+                            <Editor
+                                key={dateString}
+                                content={journalContent}
+                                onChange={setJournalContent}
+                                onSave={handleSaveJournal}
+                                lastSavedRequestAt={lastSaved}
+                                isSaving={isSaving}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

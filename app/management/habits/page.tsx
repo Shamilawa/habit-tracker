@@ -6,6 +6,7 @@ import Icon from "../../components/ui/Icon";
 import { Habit } from "@/app/types/habit";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import { toast } from "sonner";
+import { TableRowSkeleton } from "../../components/ui/Skeleton";
 
 interface ApiHabit extends Omit<Habit, "dailyStatuses" | "id"> {
     _id: string;
@@ -116,34 +117,40 @@ export default function HabitManagementPage() {
             </div>
 
             <div className="flex-1 overflow-auto bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-                {isLoading ? (
-                    <div className="p-8 text-center text-slate-500">
-                        Loading habits...
-                    </div>
-                ) : habits.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">
-                        No habits found. Create your first one!
-                    </div>
-                ) : (
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10 border-b border-border-light dark:border-border-dark">
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10 border-b border-border-light dark:border-border-dark">
+                        <tr>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                Name
+                            </th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                Category
+                            </th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                Frequency
+                            </th>
+                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                        {isLoading ? (
+                            <>
+                                <TableRowSkeleton />
+                                <TableRowSkeleton />
+                                <TableRowSkeleton />
+                                <TableRowSkeleton />
+                                <TableRowSkeleton />
+                            </>
+                        ) : habits.length === 0 ? (
                             <tr>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    Name
-                                </th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    Category
-                                </th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    Frequency
-                                </th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
-                                    Actions
-                                </th>
+                                <td colSpan={4} className="p-8 text-center text-slate-500">
+                                    No habits found. Create your first one!
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border-light dark:divide-border-dark">
-                            {habits.map((habit) => (
+                        ) : (
+                            habits.map((habit) => (
                                 <tr
                                     key={habit.id}
                                     className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
@@ -201,10 +208,10 @@ export default function HabitManagementPage() {
                                         </button>
                                     </td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
 
             {/* Edit/Create Modal controlled by this page */}
