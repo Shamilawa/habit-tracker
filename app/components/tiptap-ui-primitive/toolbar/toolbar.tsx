@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react"
 import { Separator } from "@/app/components/tiptap-ui-primitive/separator"

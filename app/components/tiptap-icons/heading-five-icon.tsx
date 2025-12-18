@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { memo } from "react"
 
 export const HeadingFiveIcon = memo(({

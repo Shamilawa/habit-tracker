@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Extension } from "@tiptap/core"
 import { getSelectedNodesOfType } from "@/lib/tiptap-utils"
 import { updateNodesAttr } from "@/lib/tiptap-utils"

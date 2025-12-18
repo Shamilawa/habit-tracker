@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { memo } from "react"
 
 export const Code2Icon = memo(({

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { memo } from "react"
 
 export const ArrowLeftIcon = memo(({

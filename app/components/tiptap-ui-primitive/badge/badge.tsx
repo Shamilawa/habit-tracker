@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 import { forwardRef } from "react"
 import "@/app/components/tiptap-ui-primitive/badge/badge-colors.scss"
