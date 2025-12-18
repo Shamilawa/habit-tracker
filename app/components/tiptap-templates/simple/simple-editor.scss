@@ -74,7 +74,17 @@ body,
   outline: none;
   font-size: 1.05rem;
   position: relative;
+  background-color: #ffffff;
+  color: #0f172a;
+  border-radius: 0.5rem;
+  /* rounded-lg */
   /* Ensure positioning context */
+}
+
+.dark .simple-editor-content .tiptap.ProseMirror.simple-editor {
+  background-color: #ffffff;
+  /* Keep white even in dark mode */
+  color: #0f172a;
 }
 
 

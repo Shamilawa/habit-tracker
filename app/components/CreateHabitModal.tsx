@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useUI } from "../context/UIContext";
 import { Habit } from "@/app/types/habit"; // Import Habit type
 import { toast } from "sonner";
+import { useAuth } from "../context/AuthContext";
 
 const ICONS = [
     "directions_run",
@@ -91,6 +92,7 @@ export default function CreateHabitModal({
 }: CreateHabitModalProps) {
     const { isCreateHabitModalOpen, closeCreateHabitModal, triggerRefresh } =
         useUI();
+    const { user } = useAuth();
 
     // Use internal close if onClose is not provided (for global usage)
     const handleClose = onClose || closeCreateHabitModal;
@@ -226,19 +228,29 @@ export default function CreateHabitModal({
         };
 
         try {
+            if (!user) {
+                toast.error("You must be logged in");
+                return;
+            }
+            const token = await user.getIdToken();
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            };
+
             let res;
             if (initialData && initialData._id) {
                 // UPDATE
                 res = await fetch(`/api/habits/${initialData._id}`, {
                     method: "PUT",
-                    headers: { "Content-Type": "application/json" },
+                    headers,
                     body: JSON.stringify(habitData),
                 });
             } else {
                 // CREATE
                 res = await fetch("/api/habits", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers,
                     body: JSON.stringify(habitData),
                 });
             }

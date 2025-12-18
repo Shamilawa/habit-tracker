@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "../context/AuthContext";
 
 const NAV_SECTIONS = [
     {
@@ -48,6 +49,7 @@ const NAV_SECTIONS = [
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const { user, logout } = useAuth();
 
     const isActive = (href: string) => {
         if (href === "/" && pathname === "/") return true;
@@ -57,7 +59,7 @@ export default function Sidebar() {
 
     return (
         <aside className="hidden md:flex flex-col w-64 border-r border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark transition-colors duration-300 z-20">
-            <div className="h-16 flex items-center px-6 border-b border-border-light dark:border-border-dark">
+            <div className="h-[64px] shrink-0 flex items-center px-6 border-b border-border-light dark:border-border-dark">
                 <div className="flex items-center gap-2 text-primary dark:text-primary-dark font-bold text-xl tracking-tight">
                     <span className="material-icons-round text-2xl">
                         insights
@@ -103,27 +105,33 @@ export default function Sidebar() {
             </nav>
 
             <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900/50">
-                <Link
-                    href="#"
-                    className="flex items-center gap-3 w-full p-2 rounded-md hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors"
-                >
-                    <img
-                        alt="User Avatar"
-                        className="w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXciEwyXWgMtBc_szLbMOv3bwOGXJ9IcI1WGr6lDKKFRcu4LcX1mXyc8tkQu7KrNtaSqweOPVpIneOyQwcv2PChQqjE5Ne4jetQogMN526-YeQkMxEmFfWm2Bx5HmBnERzh2KlxHBv9pF5JxriVNWMpizd79FPqRZPzKR8dTbiTSja3JAtiRzcav_JFTb9qZx2UE3AQsabnFipJ6IaSpLgSh8r2nS01hkiVBGhoI1xonuSA6O25jEm4DKyr-UjhWJiHEbjS2WZsUw"
-                    />
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                            Danny M.
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                            Pro Plan
-                        </p>
+                {user ? (
+                    <div className="flex items-center gap-3 w-full p-2 rounded-md hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
+                        <img
+                            alt="User Avatar"
+                            className="w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600"
+                            src={user.photoURL || "https://ui-avatars.com/api/?name=" + user.displayName}
+                        />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                                {user.displayName || user.email?.split("@")[0]}
+                            </p>
+                            <button
+                                onClick={() => logout()}
+                                className="text-xs text-red-500 hover:text-red-600 hover:underline truncate text-left"
+                            >
+                                Sign Out
+                            </button>
+                        </div>
                     </div>
-                    <span className="material-icons-round text-slate-400 text-lg">
-                        settings
-                    </span>
-                </Link>
+                ) : (
+                    <Link
+                        href="/login"
+                        className="flex items-center justify-center gap-2 w-full p-2 rounded-md bg-primary text-white hover:bg-primary/90 transition-colors"
+                    >
+                        <span>Sign In</span>
+                    </Link>
+                )}
             </div>
         </aside>
     );

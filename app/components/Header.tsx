@@ -18,7 +18,7 @@ export default function Header() {
     };
 
     return (
-        <header className="h-16 flex items-center justify-between px-6 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark z-10">
+        <header className="h-[64px] shrink-0 flex items-center justify-between px-6 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark z-10">
             <div className="flex items-center gap-4">
                 <button className="md:hidden p-1 text-slate-500 hover:text-primary">
                     <span className="material-icons-round">menu</span>

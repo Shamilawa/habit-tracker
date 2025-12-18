@@ -4,6 +4,7 @@ import "./globals.css";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { UIProvider } from "./context/UIContext";
+import { AuthProvider } from "./context/AuthContext";
 import CreateHabitModal from "./components/CreateHabitModal";
 import { Toaster } from "sonner";
 
@@ -35,15 +36,17 @@ export default function RootLayout({
                 className={`${inter.variable} bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-body antialiased selection:bg-primary selection:text-white transition-colors duration-300`}
             >
                 <UIProvider>
-                    <div className="flex h-screen overflow-hidden">
-                        <Sidebar />
-                        <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-                            <Header />
-                            {children}
-                        </main>
-                    </div>
-                    <CreateHabitModal />
-                    <Toaster position="top-right" richColors />
+                    <AuthProvider>
+                        <div className="flex h-screen overflow-hidden">
+                            <Sidebar />
+                            <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+                                <Header />
+                                {children}
+                            </main>
+                        </div>
+                        <CreateHabitModal />
+                        <Toaster position="top-right" richColors />
+                    </AuthProvider>
                 </UIProvider>
             </body>
         </html>

@@ -13,10 +13,11 @@ import {
     getWeekNumber,
 } from "../utils/dateUtils";
 import { useUI } from "../context/UIContext";
+import { useAuth } from "../context/AuthContext";
 import { StatsSkeleton, TableGridSkeleton } from "../components/ui/Skeleton";
 
-interface ApiHabit extends Omit<Habit, "dailyStatuses" | "id"> {
-    _id: string;
+interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
+    _id?: string;
     frequency: {
         sunday: boolean;
         monday: boolean;
@@ -31,6 +32,7 @@ interface ApiHabit extends Omit<Habit, "dailyStatuses" | "id"> {
 
 export default function WeeklyTrackerPage() {
     const { openCreateHabitModal, lastUpdated } = useUI();
+    const { user, loading } = useAuth();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isLoading, setIsLoading] = useState(true);
 
@@ -50,9 +52,18 @@ export default function WeeklyTrackerPage() {
     const [habits, setHabits] = useState<Habit[]>([]);
 
     useEffect(() => {
+        if (!user && !loading) return; // Wait for user
+
         const fetchHabits = async () => {
+            // Reset loading state on date change or update, if desired.
+            // But usually keeping old data until new data arrives is better UX, so maybe only on mount?
+            // For now, let's keep it simple.
             try {
-                const res = await fetch("/api/habits");
+                if (!user) return;
+                const token = await user.getIdToken();
+                const res = await fetch("/api/habits", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
                 if (!res.ok) throw new Error("Failed to fetch habits");
                 const data: ApiHabit[] = await res.json();
 
@@ -81,13 +92,15 @@ export default function WeeklyTrackerPage() {
                     ).length;
 
                     return {
-                        id: apiHabit._id,
+                        id: apiHabit.id || apiHabit._id!,
+                        _id: apiHabit.id || apiHabit._id!,
                         name: apiHabit.name,
                         category: apiHabit.category,
                         icon: apiHabit.icon,
                         iconColorClass: apiHabit.iconColorClass,
                         iconBgClass: apiHabit.iconBgClass,
                         goal: apiHabit.goal,
+                        userId: apiHabit.userId,
                         frequency: apiHabit.frequency || {
                             sunday: true,
                             monday: true,
@@ -110,8 +123,10 @@ export default function WeeklyTrackerPage() {
             }
         };
 
-        fetchHabits();
-    }, [currentDate, lastUpdated]); // Refetch when week changes OR when lastUpdated changes (new habit added)
+        if (user) {
+            fetchHabits();
+        }
+    }, [currentDate, lastUpdated, user, loading]);
 
     const handlePreviousWeek = () => {
         const newDate = new Date(currentDate);
@@ -170,9 +185,14 @@ export default function WeeklyTrackerPage() {
 
         // API call
         try {
+            if (!user) return; // Should allow offline? Ideally sync later, but for now blocking.
+            const token = await user.getIdToken();
             const res = await fetch(`/api/habits/${habitId}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ date, status: newStatus }),
             });
 

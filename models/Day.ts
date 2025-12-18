@@ -1,24 +1,27 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import { DocumentData, QueryDocumentSnapshot } from "firebase-admin/firestore";
 
-export interface IDay extends Document {
+export interface IDay {
     date: string; // YYYY-MM-DD
+    userId: string;
     content: string; // HTML content from Tiptap or JSON
 }
 
-const DaySchema: Schema = new Schema(
-    {
-        date: { type: String, required: true, unique: true },
-        content: { type: String, default: "" },
+export const dayConverter = {
+    toFirestore(day: IDay): DocumentData {
+        return {
+            date: day.date,
+            userId: day.userId,
+            content: day.content,
+        };
     },
-    { timestamps: true }
-);
-
-// Force model recompilation in dev to pick up schema changes
-if (process.env.NODE_ENV === "development" && mongoose.models.Day) {
-    delete mongoose.models.Day;
-}
-
-const Day: Model<IDay> =
-    mongoose.models.Day || mongoose.model<IDay>("Day", DaySchema);
-
-export default Day;
+    fromFirestore(
+        snapshot: QueryDocumentSnapshot
+    ): IDay {
+        const data = snapshot.data();
+        return {
+            date: data.date,
+            userId: data.userId,
+            content: data.content,
+        };
+    },
+};
