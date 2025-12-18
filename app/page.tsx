@@ -6,6 +6,7 @@ import Icon from "./components/ui/Icon";
 import Editor from "./components/Editor";
 import { Habit } from "@/app/types/habit";
 import { cn } from "@/lib/utils";
+import { HabitSkeleton, JournalSkeleton } from "./components/ui/Skeleton";
 
 // Helper for date formatting
 const formatDate = (date: Date) => {
@@ -72,6 +73,7 @@ export default function Home() {
     // Fetch Habits
     useEffect(() => {
         const fetchHabits = async () => {
+            setIsLoading(true);
             try {
                 const res = await fetch("/api/habits");
                 if (!res.ok) throw new Error("Failed to fetch habits");
@@ -106,6 +108,8 @@ export default function Home() {
             } catch (error) {
                 console.error("Error fetching habits:", error);
                 toast.error("Failed to load habits");
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -297,7 +301,13 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-3">
-                            {activeHabits.length === 0 ? (
+                            {isLoading ? (
+                                <>
+                                    <HabitSkeleton />
+                                    <HabitSkeleton />
+                                    <HabitSkeleton />
+                                </>
+                            ) : activeHabits.length === 0 ? (
                                 <div className="text-center py-8 text-sm text-slate-500">
                                     No habits scheduled for today.
                                 </div>
@@ -348,14 +358,18 @@ export default function Home() {
                 {/* Right Panel: Journal Editor */}
                 <div className="flex-1 flex flex-col h-full bg-background-light dark:bg-background-dark overflow-hidden">
                     <div className="flex-1 h-full">
-                        <Editor
-                            key={dateString}
-                            content={journalContent}
-                            onChange={setJournalContent}
-                            onSave={handleSaveJournal}
-                            lastSavedRequestAt={lastSaved}
-                            isSaving={isSaving}
-                        />
+                        {isLoading ? (
+                            <JournalSkeleton />
+                        ) : (
+                            <Editor
+                                key={dateString}
+                                content={journalContent}
+                                onChange={setJournalContent}
+                                onSave={handleSaveJournal}
+                                lastSavedRequestAt={lastSaved}
+                                isSaving={isSaving}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

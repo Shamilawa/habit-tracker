@@ -13,6 +13,7 @@ import {
     getWeekNumber,
 } from "../utils/dateUtils";
 import { useUI } from "../context/UIContext";
+import { StatsSkeleton, TableGridSkeleton } from "../components/ui/Skeleton";
 
 interface ApiHabit extends Omit<Habit, "dailyStatuses" | "id"> {
     _id: string;
@@ -185,13 +186,7 @@ export default function WeeklyTrackerPage() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center text-slate-500">
-                Loading habits...
-            </div>
-        );
-    }
+
 
     return (
         <div className="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark p-6">
@@ -213,45 +208,59 @@ export default function WeeklyTrackerPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <StatsCard
-                        title="Completion Rate"
-                        value="87%"
-                        subValue={
-                            <>
-                                <Icon
-                                    name="trending_up"
-                                    className="text-sm mr-0.5"
-                                />{" "}
-                                12%
-                            </>
-                        }
-                        icon="check_circle"
-                        iconColorClass="text-emerald-600 dark:text-emerald-400"
-                        iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-                    />
-                    <StatsCard
-                        title="Perfect Days"
-                        value="4"
-                        subValue="/ 7 days"
-                        icon="emoji_events"
-                        iconColorClass="text-blue-600 dark:text-blue-400"
-                        iconBgClass="bg-blue-100 dark:bg-blue-900/30"
-                    />
-                    <StatsCard
-                        title="Current Streak"
-                        value="12"
-                        subValue="days"
-                        icon="local_fire_department"
-                        iconColorClass="text-orange-600 dark:text-orange-400"
-                        iconBgClass="bg-orange-100 dark:bg-orange-900/30"
-                    />
+                    {isLoading ? (
+                        <>
+                            <StatsSkeleton />
+                            <StatsSkeleton />
+                            <StatsSkeleton />
+                        </>
+                    ) : (
+                        <>
+                            <StatsCard
+                                title="Completion Rate"
+                                value="87%"
+                                subValue={
+                                    <>
+                                        <Icon
+                                            name="trending_up"
+                                            className="text-sm mr-0.5"
+                                        />{" "}
+                                        12%
+                                    </>
+                                }
+                                icon="check_circle"
+                                iconColorClass="text-emerald-600 dark:text-emerald-400"
+                                iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
+                            />
+                            <StatsCard
+                                title="Perfect Days"
+                                value="4"
+                                subValue="/ 7 days"
+                                icon="emoji_events"
+                                iconColorClass="text-blue-600 dark:text-blue-400"
+                                iconBgClass="bg-blue-100 dark:bg-blue-900/30"
+                            />
+                            <StatsCard
+                                title="Current Streak"
+                                value="12"
+                                subValue="days"
+                                icon="local_fire_department"
+                                iconColorClass="text-orange-600 dark:text-orange-400"
+                                iconBgClass="bg-orange-100 dark:bg-orange-900/30"
+                            />
+                        </>
+                    )}
                 </div>
 
-                <HabitTable
-                    habits={habits}
-                    weekDays={weekDays}
-                    onToggleHabit={handleToggleHabit}
-                />
+                {isLoading ? (
+                    <TableGridSkeleton />
+                ) : (
+                    <HabitTable
+                        habits={habits}
+                        weekDays={weekDays}
+                        onToggleHabit={handleToggleHabit}
+                    />
+                )}
             </div>
         </div>
     );
