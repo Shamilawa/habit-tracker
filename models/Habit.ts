@@ -19,6 +19,7 @@ export interface IHabit {
     id?: string;
     userId: string;
     name: string;
+    categoryId?: string;
     category: string;
     icon: string;
     iconColorClass: string;
@@ -43,6 +44,7 @@ export const habitConverter = {
             id: snapshot.id,
             userId: data.userId,
             name: data.name,
+            categoryId: data.categoryId,
             category: data.category,
             icon: data.icon,
             iconColorClass: data.iconColorClass,

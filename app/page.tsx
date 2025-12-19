@@ -47,6 +47,7 @@ export default function Home() {
                             userId: h.userId,
                             name: h.name,
                             category: h.category,
+                            categoryId: h.categoryId,
                             icon: h.icon,
                             iconColorClass: h.iconColorClass,
                             iconBgClass: h.iconBgClass,
