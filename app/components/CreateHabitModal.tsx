@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUI } from "../context/UIContext";
 import { Habit } from "@/app/types/habit"; // Import Habit type
 import { toast } from "sonner";
@@ -48,6 +48,29 @@ export default function CreateHabitModal({
     const [selectedCategoryId, setSelectedCategoryId] = useState("");
     const [customCategory, setCustomCategory] = useState("");
 
+    // Dropdown State
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [dropdownSearch, setDropdownSearch] = useState("");
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Filter categories based on search
+    const filteredCategories = categories.filter(c =>
+        c.name.toLowerCase().includes(dropdownSearch.toLowerCase())
+    );
+
+    // Click outside to close standard dropdown
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
     // Visuals State (Now tied to Category creation mainly)
     const [selectedIcon, setSelectedIcon] = useState(ICONS[0]);
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
@@ -86,19 +109,21 @@ export default function CreateHabitModal({
             if (cat) {
                 setCategoryMode("select");
                 setSelectedCategoryId(cat.id || "");
-                // If the category has icon/color, we might want to "show" them, but we don't edit them for the habit anymore unless we edit the category (which is out of scope here?)
-                // Actually, for this task, "Habit" takes "Category's" visual.
+                setDropdownSearch(cat.name); // Set search to category name
             } else {
                 setCategoryMode("input");
                 setCustomCategory(initialData.category);
-                // If it was a custom legacy category with no ID, we might default visuals to what the habit had
                 setSelectedIcon(initialData.icon || ICONS[0]);
                 const foundColor = COLORS.find(c => c.textClass === initialData.iconColorClass);
                 if (foundColor) setSelectedColor(foundColor);
             }
         } else if (!initialData && categories.length > 0 && !selectedCategoryId) {
             // Default to first category if creating new
-            setSelectedCategoryId(categories[0].id || "");
+            // setSelectedCategoryId(categories[0].id || ""); // Don't auto-select deeply? Maybe just leave empty for search
+            // For now, let's keep it clean: no auto-selection, force user to pick?
+            // Or select first one for convenience:
+            // setSelectedCategoryId(categories[0].id || "");
+            // setDropdownSearch(categories[0].name);
         }
     }, [initialData, categories, shouldShow]);
 
@@ -142,8 +167,17 @@ export default function CreateHabitModal({
         if (shouldShow && !initialData) {
             setName("");
             setCategoryMode("select");
-            if (categories.length > 0) setSelectedCategoryId(categories[0].id || "");
-            else setCategoryMode("input");
+            setSelectedCategoryId(""); // Start empty for clean state?
+            setDropdownSearch(""); // Clear search
+
+            // Optional: Default to first category if we want to be opinionated
+            if (categories.length > 0) {
+                setSelectedCategoryId(categories[0].id || "");
+                setDropdownSearch(categories[0].name);
+            }
+
+            setCategoryMode(categories.length > 0 ? "select" : "input");
+
             setSelectedDays(Array(7).fill(true));
             // Reset visuals to default
             setSelectedIcon(ICONS[0]);
@@ -320,218 +354,334 @@ export default function CreateHabitModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-surface-dark rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                        {initialData ? "Edit Habit" : "Create New Habit"}
-                    </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-surface-dark rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col border border-white/20">
+                {/* Header */}
+                <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl sticky top-0 z-10">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                            {initialData ? "Edit Habit" : "Create New Habit"}
+                        </h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            Build a better version of yourself, one day at a time.
+                        </p>
+                    </div>
                     <button
                         onClick={handleClose}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        className="p-2 -mr-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
                     >
-                        <span className="material-icons-round">close</span>
+                        <span className="material-icons-round text-2xl">close</span>
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {/* Name */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Habit Name
-                        </label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. Drink Water"
-                            className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                            autoFocus
-                        />
-                    </div>
-
-                    {/* Icon Selection (Per Habit) */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Icon</label>
-                        <div className="grid grid-cols-8 gap-2">
-                            {ICONS.map((icon) => (
-                                <button
-                                    key={icon}
-                                    type="button"
-                                    onClick={() => setSelectedIcon(icon)}
-                                    className={`p-2 rounded-lg flex items-center justify-center transition-all ${selectedIcon === icon
-                                        ? "bg-indigo-100 text-indigo-600 ring-2 ring-indigo-600"
-                                        : "bg-white dark:bg-slate-900 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                        }`}
-                                >
-                                    <span className="material-icons-round text-xl">
-                                        {icon}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Category */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Category
-                        </label>
-                        {categoryMode === "select" ? (
-                            <div className="space-y-3">
-                                <select
-                                    value={selectedCategoryId}
-                                    onChange={handleCategoryChange}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                                >
-                                    {categories.map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name}
-                                        </option>
-                                    ))}
-                                    <option value="ADD_NEW">+ Add new...</option>
-                                </select>
-
-                                {/* Preview of selected category color */}
-                                {selectedCategoryId && (
-                                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800">
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${currentVisuals.color.bgClass}`}>
-                                            <div className={`w-4 h-4 rounded-full ${currentVisuals.color.class}`} />
-                                        </div>
-                                        <span className="text-sm text-slate-500 dark:text-slate-400">
-                                            Category Color: {currentVisuals.color.name}
-                                        </span>
+                <div className="overflow-y-auto custom-scrollbar">
+                    {isLoadingCategories ? (
+                        <div className="p-8 space-y-8 animate-pulse">
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <div className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded mb-2"></div>
+                                        <div className="h-[50px] w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
                                     </div>
-                                )}
+                                    <div className="space-y-2">
+                                        <div className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded mb-2"></div>
+                                        <div className="h-[50px] w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
+                                    </div>
+                                </div>
                             </div>
-                        ) : (
-                            <div className="space-y-4 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div className="space-y-3">
+                                <div className="h-5 w-32 bg-slate-200 dark:bg-slate-800 rounded"></div>
+                                <div className="h-32 w-full bg-slate-100 dark:bg-slate-800/50 rounded-2xl"></div>
+                            </div>
+                            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div className="flex justify-between">
+                                    <div className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
+                                    <div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded"></div>
+                                </div>
                                 <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={customCategory}
-                                        onChange={(e) =>
-                                            setCustomCategory(e.target.value)
-                                        }
-                                        placeholder="Enter new category name"
-                                        className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setCategoryMode("select")}
-                                        className="px-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                                    >
-                                        Cancel
-                                    </button>
+                                    {Array(7).fill(0).map((_, i) => (
+                                        <div key={i} className="flex-1 h-12 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+                            {/* Section 1: Core Info */}
+                            <div className="space-y-6">
+                                {/* Name & Category Row */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                            Habit Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            placeholder="e.g. Drink Water"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2 relative" ref={dropdownRef}>
+                                        <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                            Category
+                                        </label>
+                                        {categoryMode === "select" ? (
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={dropdownSearch}
+                                                    onChange={(e) => {
+                                                        setDropdownSearch(e.target.value);
+                                                        setIsDropdownOpen(true);
+                                                    }}
+                                                    onFocus={() => setIsDropdownOpen(true)}
+                                                    placeholder="Select or search category..."
+                                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400"
+                                                />
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                                    <span className="material-icons-round">expand_more</span>
+                                                </div>
+
+                                                {/* Dropdown Menu */}
+                                                {isDropdownOpen && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 p-1 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+                                                        {filteredCategories.length > 0 ? (
+                                                            filteredCategories.map((c) => (
+                                                                <button
+                                                                    key={c.id}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setSelectedCategoryId(c.id || "");
+                                                                        setDropdownSearch(c.name);
+                                                                        setIsDropdownOpen(false);
+                                                                    }}
+                                                                    className="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center justify-between group"
+                                                                >
+                                                                    <span className="font-medium text-slate-700 dark:text-slate-200">
+                                                                        {c.name}
+                                                                    </span>
+                                                                    {c.id === selectedCategoryId && (
+                                                                        <span className="material-icons-round text-primary text-sm">check</span>
+                                                                    )}
+                                                                </button>
+                                                            ))
+                                                        ) : (
+                                                            <div className="p-4 text-center text-sm text-slate-500">
+                                                                No categories found.
+                                                            </div>
+                                                        )}
+
+                                                        {/* Create New Option */}
+                                                        <div className="border-t border-slate-100 dark:border-slate-700/50 mt-1 pt-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setCategoryMode("input");
+                                                                    setCustomCategory(dropdownSearch); // Pre-fill with what they typed
+                                                                    setIsDropdownOpen(false);
+                                                                    // Reset visuals for new category creation
+                                                                    setSelectedIcon(ICONS[0]);
+                                                                    setSelectedColor(COLORS[0]);
+                                                                }}
+                                                                className="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-2 text-primary font-medium"
+                                                            >
+                                                                <span className="material-icons-round text-lg">add_circle_outline</span>
+                                                                Create "{dropdownSearch || "New"}"
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={customCategory}
+                                                    onChange={(e) => setCustomCategory(e.target.value)}
+                                                    placeholder="New category name"
+                                                    className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setCategoryMode("select");
+                                                        // Reset search to empty or previous valid selection?
+                                                        // Ideally, reset to previous selection if exists, or clear
+                                                        setDropdownSearch("");
+                                                    }}
+                                                    className="px-3 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                                >
+                                                    <span className="material-icons-round">close</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                        Category Color
-                                    </label>
-
-                                    {/* Color Selection for New Category */}
-                                    <div>
-                                        <div className="grid grid-cols-8 gap-2">
+                                {/* New Category Color Picker (Only visible when creating new) */}
+                                {categoryMode === "input" && (
+                                    <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700/50 space-y-3 animate-in fade-in slide-in-from-top-2">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                            Choose Category Color
+                                        </label>
+                                        <div className="flex flex-wrap gap-3">
                                             {COLORS.map((color) => (
                                                 <button
                                                     key={color.name}
                                                     type="button"
                                                     onClick={() => setSelectedColor(color)}
                                                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor.name === color.name
-                                                        ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-900"
-                                                        : ""
+                                                        ? "ring-2 ring-offset-2 ring-primary ring-offset-white dark:ring-offset-slate-900 scale-110"
+                                                        : "hover:scale-110"
                                                         }`}
                                                 >
-                                                    <div
-                                                        className={`w-full h-full rounded-full ${color.class}`}
-                                                    ></div>
+                                                    <div className={`w-full h-full rounded-full ${color.class}`} />
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
+                                )}
+
+                                {/* Visual Preview Banner */}
+                                {(categoryMode === "select" && selectedCategoryId) || categoryMode === "input" ? (
+                                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transform transition-transform duration-300 hover:scale-105 ${currentVisuals.color.bgClass}`}>
+                                            <span className={`material-icons-round text-2xl ${currentVisuals.color.textClass}`}>
+                                                {selectedIcon}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-medium text-slate-900 dark:text-white">
+                                                Visual Preview
+                                            </h4>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                This is how your habit will appear in the tracker
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            {/* Section 2: Icon Selection */}
+                            <div className="space-y-3">
+                                <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    Choose Icon
+                                </label>
+                                <div className="grid grid-cols-8 sm:grid-cols-10 gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                                    {ICONS.map((icon) => (
+                                        <button
+                                            key={icon}
+                                            type="button"
+                                            onClick={() => setSelectedIcon(icon)}
+                                            className={`aspect-square rounded-xl flex items-center justify-center transition-all duration-200 ${selectedIcon === icon
+                                                ? "bg-white dark:bg-slate-800 text-primary shadow-lg scale-110 ring-2 ring-primary/10"
+                                                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm"
+                                                }`}
+                                        >
+                                            <span className="material-icons-round text-2xl">
+                                                {icon}
+                                            </span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
-                        )}
-                    </div>
 
-                    {/* Frequency / Goal */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Frequency{" "}
-                            <span className="text-slate-400 font-normal">
-                                ({selectedDays.filter(Boolean).length}{" "}
-                                days/week)
-                            </span>
-                        </label>
-                        <div className="flex justify-between gap-2">
-                            {["M", "T", "W", "T", "F", "S", "S"].map(
-                                (day, index) => (
-                                    <button
-                                        key={index}
-                                        type="button"
-                                        onClick={() => toggleDay(index)}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${selectedDays[index]
-                                            ? "bg-primary text-white shadow-sm"
-                                            : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                            }`}
-                                    >
-                                        {day}
-                                    </button>
-                                )
-                            )}
-                        </div>
-                    </div>
+                            {/* Section 3: Schedule */}
+                            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center justify-between">
+                                    <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                        Frequency
+                                    </label>
+                                    <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
+                                        {selectedDays.filter(Boolean).length} days / week
+                                    </span>
+                                </div>
 
-                    {/* Time Range */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Start Time <span className="text-slate-400 font-normal">(Optional)</span>
-                            </label>
-                            <input
-                                type="time"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                End Time <span className="text-slate-400 font-normal">(Optional)</span>
-                            </label>
-                            <input
-                                type="time"
-                                value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                            />
-                        </div>
-                    </div>
+                                <div className="flex justify-between gap-2">
+                                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                                        (day, index) => (
+                                            <button
+                                                key={index}
+                                                type="button"
+                                                onClick={() => toggleDay(index)}
+                                                className={`flex-1 h-12 rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all duration-200 ${selectedDays[index]
+                                                    ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md transform -translate-y-1"
+                                                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                                    }`}
+                                            >
+                                                {day.charAt(0)}
+                                                <span className="text-[10px] font-normal opacity-70 hidden sm:block">{day}</span>
+                                            </button>
+                                        )
+                                    )}
+                                </div>
 
-                    <div className="pt-4 flex gap-4">
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            className="flex-1 py-3 px-4 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="flex-1 py-3 px-4 rounded-xl bg-primary text-white font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isSubmitting
-                                ? initialData
-                                    ? "Saving..."
-                                    : "Creating..."
-                                : initialData
-                                    ? "Save Changes"
-                                    : "Create Habit"}
-                        </button>
-                    </div>
-                </form>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                            Start Time <span className="text-slate-400 font-normal text-xs ml-1">(Optional)</span>
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="time"
+                                                value={startTime}
+                                                onChange={(e) => setStartTime(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            />
+                                            <span className="material-icons-round absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">schedule</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                            End Time <span className="text-slate-400 font-normal text-xs ml-1">(Optional)</span>
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="time"
+                                                value={endTime}
+                                                onChange={(e) => setEndTime(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            />
+                                            <span className="material-icons-round absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">schedule</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer Buttons */}
+                            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+                                <button
+                                    type="button"
+                                    onClick={handleClose}
+                                    className="flex-1 py-3.5 px-6 rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="flex-[2] py-3.5 px-6 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-primary/40 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <span className="animate-spin material-icons-round text-lg">refresh</span>
+                                            <span>Saving...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-icons-round">{initialData ? "save" : "add_circle"}</span>
+                                            <span>{initialData ? "Save Changes" : "Create Habit"}</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                </div>
             </div >
         </div >
     );
