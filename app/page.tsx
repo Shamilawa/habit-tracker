@@ -17,8 +17,11 @@ function Loading() {
     );
 }
 
+import { useUI } from "./context/UIContext";
+
 export default function Home() {
     const { user, loading } = useAuth();
+    const { lastUpdated } = useUI();
     const router = useRouter();
     const [habits, setHabits] = useState<Habit[]>([]);
     const [fetching, setFetching] = useState(true);
@@ -81,7 +84,7 @@ export default function Home() {
             // No user, not loading -> handled by redirect effect, but stop fetching spinner
             setFetching(false);
         }
-    }, [user, loading, router]);
+    }, [user, loading, router, lastUpdated]);
 
     if (loading || fetching) return <Loading />;
 

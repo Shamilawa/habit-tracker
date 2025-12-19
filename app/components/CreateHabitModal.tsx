@@ -7,11 +7,10 @@ import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 
 import { ICONS, COLORS } from "@/app/utils/constants";
+import TimePicker from "./TimePicker";
+import StepIndicator from "./StepIndicator"; // Import StepIndicator
 
-// Removed static CATEGORIES constant, using dynamic state
-const DEFAULT_CATEGORIES = ["Health", "Learning", "Productivity", "Wellness", "Other"];
-
-import { ICategory } from "@/models/Category"; // Assuming shared model or define locally if strictly frontend
+import { ICategory } from "@/models/Category";
 
 interface CreateHabitModalProps {
     initialData?: Habit | null; // Optional prop for editing
@@ -34,9 +33,11 @@ export default function CreateHabitModal({
     const handleClose = onClose || closeCreateHabitModal;
 
     // Determine if modal should be shown
-    // 1. Global context is true
-    // 2. isOpen prop is true (managed externally)
     const shouldShow = isCreateHabitModalOpen || isOpen;
+
+    // Stepper State
+    const [currentStep, setCurrentStep] = useState(1);
+    const TOTAL_STEPS = 3;
 
     // Form State
     const [name, setName] = useState("");
@@ -71,7 +72,7 @@ export default function CreateHabitModal({
         };
     }, []);
 
-    // Visuals State (Now tied to Category creation mainly)
+    // Visuals State
     const [selectedIcon, setSelectedIcon] = useState(ICONS[0]);
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
@@ -104,12 +105,11 @@ export default function CreateHabitModal({
     // Set initial category selection when editing or when categories load
     useEffect(() => {
         if (initialData && categories.length > 0) {
-            // Try to find category by ID first, then by name (migration case)
             const cat = categories.find(c => c.id === initialData.categoryId) || categories.find(c => c.name === initialData.category);
             if (cat) {
                 setCategoryMode("select");
                 setSelectedCategoryId(cat.id || "");
-                setDropdownSearch(cat.name); // Set search to category name
+                setDropdownSearch(cat.name);
             } else {
                 setCategoryMode("input");
                 setCustomCategory(initialData.category);
@@ -117,13 +117,6 @@ export default function CreateHabitModal({
                 const foundColor = COLORS.find(c => c.textClass === initialData.iconColorClass);
                 if (foundColor) setSelectedColor(foundColor);
             }
-        } else if (!initialData && categories.length > 0 && !selectedCategoryId) {
-            // Default to first category if creating new
-            // setSelectedCategoryId(categories[0].id || ""); // Don't auto-select deeply? Maybe just leave empty for search
-            // For now, let's keep it clean: no auto-selection, force user to pick?
-            // Or select first one for convenience:
-            // setSelectedCategoryId(categories[0].id || "");
-            // setDropdownSearch(categories[0].name);
         }
     }, [initialData, categories, shouldShow]);
 
@@ -134,11 +127,11 @@ export default function CreateHabitModal({
     // Goal State (Day Selection)
     const [selectedDays, setSelectedDays] = useState<boolean[]>(
         Array(7).fill(true)
-    ); // Default all days
+    );
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Effect to populate form when initialData changes (Edit Mode)
+    // Populate form on Edit / Reset on Create
     useEffect(() => {
         if (initialData) {
             setName(initialData.name);
@@ -159,19 +152,13 @@ export default function CreateHabitModal({
             setStartTime(initialData.startTime || "");
             setEndTime(initialData.endTime || "");
         } else if (shouldShow && !initialData) {
-            // Reset logic
-        }
-    }, [initialData, isCreateHabitModalOpen, isOpen]);
-
-    // Reset when opening in CREATE mode (no initialData)
-    useEffect(() => {
-        if (shouldShow && !initialData) {
+            // Reset logic for CREATE mode
             setName("");
             setCategoryMode("select");
-            setSelectedCategoryId(""); // Start empty for clean state?
-            setDropdownSearch(""); // Clear search
+            setSelectedCategoryId("");
+            setDropdownSearch("");
+            setCurrentStep(1); // Always start at step 1 for new habit
 
-            // Optional: Default to first category if we want to be opinionated
             if (categories.length > 0) {
                 setSelectedCategoryId(categories[0].id || "");
                 setDropdownSearch(categories[0].name);
@@ -180,28 +167,14 @@ export default function CreateHabitModal({
             setCategoryMode(categories.length > 0 ? "select" : "input");
 
             setSelectedDays(Array(7).fill(true));
-            // Reset visuals to default
             setSelectedIcon(ICONS[0]);
             setSelectedColor(COLORS[0]);
             setStartTime("");
             setEndTime("");
         }
-    }, [shouldShow, initialData]);
+    }, [initialData, isCreateHabitModalOpen, isOpen, shouldShow]);
 
     if (!shouldShow) return null;
-
-    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        if (e.target.value === "ADD_NEW") {
-            setCategoryMode("input");
-            setCustomCategory("");
-            // Reset visuals for new category creation
-            setSelectedIcon(ICONS[0]);
-            setSelectedColor(COLORS[0]);
-        } else {
-            setCategoryMode("select");
-            setSelectedCategoryId(e.target.value);
-        }
-    };
 
     const toggleDay = (index: number) => {
         const newDays = [...selectedDays];
@@ -215,18 +188,62 @@ export default function CreateHabitModal({
             const cat = categories.find(c => c.id === selectedCategoryId);
             if (cat) {
                 return {
-                    icon: selectedIcon, // Icon is always per-habit now
-                    color: (COLORS.find(c => c.name === cat.color) || COLORS[0])
+                    icon: selectedIcon,
+                    color: (COLORS.find(c => c.name === cat.color) || COLORS[0]),
+                    categoryName: cat.name
                 };
             }
         }
-        return { icon: selectedIcon, color: selectedColor };
+        return {
+            icon: selectedIcon,
+            color: selectedColor,
+            categoryName: customCategory || "New Category"
+        };
     };
 
     const currentVisuals = getCurrentVisuals();
 
+    // Validation Logic
+    const validateStep = (step: number) => {
+        if (step === 1) {
+            if (!name.trim()) {
+                toast.error("Please enter a habit name");
+                return false;
+            }
+            if (categoryMode === "select" && !selectedCategoryId) {
+                toast.error("Please select a category");
+                return false;
+            }
+            if (categoryMode === "input" && !customCategory.trim()) {
+                toast.error("Please enter a category name");
+                return false;
+            }
+        }
+        if (step === 3) {
+            const goal = selectedDays.filter((d) => d).length;
+            if (goal === 0) {
+                toast.error("Please select at least one day");
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const handleNext = () => {
+        if (validateStep(currentStep)) {
+            setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
+        }
+    };
+
+    const handleBack = () => {
+        setCurrentStep((prev) => Math.max(prev - 1, 1));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!validateStep(3)) return;
+
         setIsSubmitting(true);
 
         const token = await user?.getIdToken();
@@ -274,7 +291,6 @@ export default function CreateHabitModal({
             }
         }
 
-        // Icon is ALWAYS selectedIcon (Habit Level)
         finalIcon = selectedIcon;
 
         const goal = selectedDays.filter((d) => d).length;
@@ -288,12 +304,6 @@ export default function CreateHabitModal({
             saturday: selectedDays[5],
             sunday: selectedDays[6],
         };
-
-        if (!name || (categoryMode === "input" && !finalCategoryName && !customCategory) || goal === 0) {
-            toast.error("Please fill in all fields");
-            setIsSubmitting(false);
-            return;
-        }
 
         const habitData = {
             name,
@@ -355,10 +365,16 @@ export default function CreateHabitModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-surface-dark rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col border border-white/20">
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            {/* Backdrop click handler could be added here if not handled by parent or internal div click */}
+            <div
+                className="absolute inset-0"
+                onClick={handleClose}
+            />
+
+            <div className="relative bg-white dark:bg-surface-dark w-full max-w-md h-full shadow-2xl flex flex-col border-l border-white/20 animate-in slide-in-from-right duration-300 ease-out">
                 {/* Header */}
-                <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl sticky top-0 z-10">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl sticky top-0 z-10">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                             {initialData ? "Edit Habit" : "Create New Habit"}
@@ -375,46 +391,29 @@ export default function CreateHabitModal({
                     </button>
                 </div>
 
-                <div className="overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                    {/* Stepper Indicator */}
+                    <StepIndicator
+                        currentStep={currentStep}
+                        totalSteps={TOTAL_STEPS}
+                        labels={["Basics", "Appearance", "Schedule"]}
+                    />
+
                     {isLoadingCategories ? (
                         <div className="p-8 space-y-8 animate-pulse">
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <div className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded mb-2"></div>
-                                        <div className="h-[50px] w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded mb-2"></div>
-                                        <div className="h-[50px] w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="h-5 w-32 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                                <div className="h-32 w-full bg-slate-100 dark:bg-slate-800/50 rounded-2xl"></div>
-                            </div>
-                            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                                <div className="flex justify-between">
-                                    <div className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                                    <div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                                </div>
-                                <div className="flex gap-2">
-                                    {Array(7).fill(0).map((_, i) => (
-                                        <div key={i} className="flex-1 h-12 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
-                                    ))}
-                                </div>
-                            </div>
+                            {/* Simple skeleton loader */}
+                            <div className="h-10 w-full bg-slate-100 dark:bg-slate-800 rounded-xl"></div>
+                            <div className="h-10 w-full bg-slate-100 dark:bg-slate-800 rounded-xl"></div>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit} className="p-8 space-y-8">
-                            {/* Section 1: Core Info */}
-                            <div className="space-y-6">
-                                {/* Name & Category Row */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <form onSubmit={handleSubmit} className="space-y-8 mt-6">
+
+                            {/* STEP 1: BASICS */}
+                            {currentStep === 1 && (
+                                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                                     <div className="space-y-2">
                                         <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                            Habit Name
+                                            What habit do you want to build?
                                         </label>
                                         <input
                                             type="text"
@@ -475,16 +474,13 @@ export default function CreateHabitModal({
                                                                 No categories found.
                                                             </div>
                                                         )}
-
-                                                        {/* Create New Option */}
                                                         <div className="border-t border-slate-100 dark:border-slate-700/50 mt-1 pt-1">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
                                                                     setCategoryMode("input");
-                                                                    setCustomCategory(dropdownSearch); // Pre-fill with what they typed
+                                                                    setCustomCategory(dropdownSearch);
                                                                     setIsDropdownOpen(false);
-                                                                    // Reset visuals for new category creation
                                                                     setSelectedIcon(ICONS[0]);
                                                                     setSelectedColor(COLORS[0]);
                                                                 }}
@@ -510,8 +506,6 @@ export default function CreateHabitModal({
                                                     type="button"
                                                     onClick={() => {
                                                         setCategoryMode("select");
-                                                        // Reset search to empty or previous valid selection?
-                                                        // Ideally, reset to previous selection if exists, or clear
                                                         setDropdownSearch("");
                                                     }}
                                                     className="px-3 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
@@ -521,34 +515,37 @@ export default function CreateHabitModal({
                                             </div>
                                         )}
                                     </div>
-                                </div>
 
-                                {/* New Category Color Picker (Only visible when creating new) */}
-                                {categoryMode === "input" && (
-                                    <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700/50 space-y-3 animate-in fade-in slide-in-from-top-2">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                            Choose Category Color
-                                        </label>
-                                        <div className="flex flex-wrap gap-3">
-                                            {COLORS.map((color) => (
-                                                <button
-                                                    key={color.name}
-                                                    type="button"
-                                                    onClick={() => setSelectedColor(color)}
-                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor.name === color.name
-                                                        ? "ring-2 ring-offset-2 ring-primary ring-offset-white dark:ring-offset-slate-900 scale-110"
-                                                        : "hover:scale-110"
-                                                        }`}
-                                                >
-                                                    <div className={`w-full h-full rounded-full ${color.class}`} />
-                                                </button>
-                                            ))}
+                                    {/* New Category Color Picker */}
+                                    {categoryMode === "input" && (
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700/50 space-y-3 animate-in fade-in slide-in-from-top-2">
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Choose Category Color
+                                            </label>
+                                            <div className="flex flex-wrap gap-3">
+                                                {COLORS.map((color) => (
+                                                    <button
+                                                        key={color.name}
+                                                        type="button"
+                                                        onClick={() => setSelectedColor(color)}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor.name === color.name
+                                                            ? "ring-2 ring-offset-2 ring-primary ring-offset-white dark:ring-offset-slate-900 scale-110"
+                                                            : "hover:scale-110"
+                                                            }`}
+                                                    >
+                                                        <div className={`w-full h-full rounded-full ${color.class}`} />
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
+                            )}
 
-                                {/* Visual Preview Banner */}
-                                {(categoryMode === "select" && selectedCategoryId) || categoryMode === "input" ? (
+                            {/* STEP 2: APPEARANCE */}
+                            {currentStep === 2 && (
+                                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                                    {/* Visual Preview Banner */}
                                     <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transform transition-transform duration-300 hover:scale-105 ${currentVisuals.color.bgClass}`}>
                                             <span className={`material-icons-round text-2xl ${currentVisuals.color.textClass}`}>
@@ -556,132 +553,149 @@ export default function CreateHabitModal({
                                             </span>
                                         </div>
                                         <div>
-                                            <h4 className="text-sm font-medium text-slate-900 dark:text-white">
-                                                Visual Preview
+                                            <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                                                {name || "Your Habit"}
                                             </h4>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                This is how your habit will appear in the tracker
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                {currentVisuals.categoryName || "Category"}
                                             </p>
                                         </div>
                                     </div>
-                                ) : null}
-                            </div>
 
-                            {/* Section 2: Icon Selection */}
-                            <div className="space-y-3">
-                                <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                    Choose Icon
-                                </label>
-                                <div className="grid grid-cols-8 sm:grid-cols-10 gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800/50">
-                                    {ICONS.map((icon) => (
-                                        <button
-                                            key={icon}
-                                            type="button"
-                                            onClick={() => setSelectedIcon(icon)}
-                                            className={`aspect-square rounded-xl flex items-center justify-center transition-all duration-200 ${selectedIcon === icon
-                                                ? "bg-white dark:bg-slate-800 text-primary shadow-lg scale-110 ring-2 ring-primary/10"
-                                                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm"
-                                                }`}
-                                        >
-                                            <span className="material-icons-round text-2xl">
-                                                {icon}
+                                    <div className="space-y-3">
+                                        <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                            Choose Icon
+                                        </label>
+                                        <div className="grid grid-cols-8 sm:grid-cols-10 gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800/50 max-h-[220px] overflow-y-auto custom-scrollbar">
+                                            {ICONS.map((icon) => (
+                                                <button
+                                                    key={icon}
+                                                    type="button"
+                                                    onClick={() => setSelectedIcon(icon)}
+                                                    className={`aspect-square rounded-xl flex items-center justify-center transition-all duration-200 ${selectedIcon === icon
+                                                        ? "bg-white dark:bg-slate-800 text-primary shadow-lg scale-110 ring-2 ring-primary/10"
+                                                        : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm"
+                                                        }`}
+                                                >
+                                                    <span className="material-icons-round text-2xl">
+                                                        {icon}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* STEP 3: SCHEDULE */}
+                            {currentStep === 3 && (
+                                <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                Frequency
+                                            </label>
+                                            <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
+                                                {selectedDays.filter(Boolean).length} days / week
                                             </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                                        </div>
 
-                            {/* Section 3: Schedule */}
-                            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                                <div className="flex items-center justify-between">
-                                    <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                        Frequency
-                                    </label>
-                                    <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
-                                        {selectedDays.filter(Boolean).length} days / week
-                                    </span>
-                                </div>
-
-                                <div className="flex justify-between gap-2">
-                                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
-                                        (day, index) => (
-                                            <button
-                                                key={index}
-                                                type="button"
-                                                onClick={() => toggleDay(index)}
-                                                className={`flex-1 h-12 rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all duration-200 ${selectedDays[index]
-                                                    ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md transform -translate-y-1"
-                                                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                                    }`}
-                                            >
-                                                {day.charAt(0)}
-                                                <span className="text-[10px] font-normal opacity-70 hidden sm:block">{day}</span>
-                                            </button>
-                                        )
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                            Start Time <span className="text-slate-400 font-normal text-xs ml-1">(Optional)</span>
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type="time"
-                                                value={startTime}
-                                                onChange={(e) => setStartTime(e.target.value)}
-                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                            />
-                                            <span className="material-icons-round absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">schedule</span>
+                                        <div className="flex justify-between gap-2">
+                                            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                                                (day, index) => (
+                                                    <button
+                                                        key={index}
+                                                        type="button"
+                                                        onClick={() => toggleDay(index)}
+                                                        className={`flex-1 h-12 rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all duration-200 ${selectedDays[index]
+                                                            ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md transform -translate-y-1"
+                                                            : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                                            }`}
+                                                    >
+                                                        {day.charAt(0)}
+                                                        <span className="text-[10px] font-normal opacity-70 hidden sm:block">{day}</span>
+                                                    </button>
+                                                )
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                            End Time <span className="text-slate-400 font-normal text-xs ml-1">(Optional)</span>
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type="time"
-                                                value={endTime}
-                                                onChange={(e) => setEndTime(e.target.value)}
-                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                            />
-                                            <span className="material-icons-round absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">schedule</span>
+
+                                    <div className="grid grid-cols-2 gap-6 pt-2">
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                Start Time <span className="text-slate-400 font-normal text-xs ml-1">(Optional)</span>
+                                            </label>
+                                            <div className="relative">
+                                                <TimePicker
+                                                    value={startTime}
+                                                    onChange={setStartTime}
+                                                    placeholder="Start"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                End Time <span className="text-slate-400 font-normal text-xs ml-1">(Optional)</span>
+                                            </label>
+                                            <div className="relative">
+                                                <TimePicker
+                                                    value={endTime}
+                                                    onChange={setEndTime}
+                                                    placeholder="End"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Footer Buttons */}
-                            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
-                                <button
-                                    type="button"
-                                    onClick={handleClose}
-                                    className="flex-1 py-3.5 px-6 rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="flex-[2] py-3.5 px-6 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-primary/40 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <span className="animate-spin material-icons-round text-lg">refresh</span>
-                                            <span>Saving...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="material-icons-round">{initialData ? "save" : "add_circle"}</span>
-                                            <span>{initialData ? "Save Changes" : "Create Habit"}</span>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
                         </form>
                     )}
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+                    {/* Back Button (Only invalid > Step 1) */}
+                    {currentStep > 1 && (
+                        <button
+                            type="button"
+                            onClick={handleBack}
+                            className="flex-1 py-3.5 px-6 rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            Back
+                        </button>
+                    )}
+
+                    {/* Cancel (Only Step 1) */}
+                    {currentStep === 1 && (
+                        <button
+                            type="button"
+                            onClick={handleClose}
+                            className="flex-1 py-3.5 px-6 rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    )}
+
+                    {/* Next / Submit Button */}
+                    <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={currentStep < TOTAL_STEPS ? handleNext : handleSubmit}
+                        className="flex-[2] py-3.5 px-6 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-primary/40 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <span className="animate-spin material-icons-round text-lg">refresh</span>
+                                <span>Saving...</span>
+                            </>
+                        ) : (
+                            <>
+                                <span>{currentStep < TOTAL_STEPS ? "Next" : (initialData ? "Save Changes" : "Create Habit")}</span>
+                                <span className="material-icons-round">{currentStep < TOTAL_STEPS ? "arrow_forward" : (initialData ? "save" : "check_circle")}</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             </div >
         </div >
