@@ -142,6 +142,7 @@ export default function CreateHabitModal({
     useEffect(() => {
         if (initialData) {
             setName(initialData.name);
+            setSelectedIcon(initialData.icon || ICONS[0]);
 
             if (initialData.frequency) {
                 setSelectedDays([
