@@ -8,6 +8,7 @@ import ConfirmationModal from "../../components/ConfirmationModal";
 import { toast } from "sonner";
 import { TableRowSkeleton } from "../../components/ui/Skeleton";
 import { useAuth } from "@/app/context/AuthContext";
+import { useUI } from "@/app/context/UIContext";
 import { Category } from "@/app/types/category";
 import { COLORS } from "@/app/utils/constants";
 
@@ -27,6 +28,7 @@ interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
 
 export default function HabitManagementPage() {
     const { user } = useAuth();
+    const { lastUpdated } = useUI();
     const [habits, setHabits] = useState<Habit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -81,7 +83,7 @@ export default function HabitManagementPage() {
     useEffect(() => {
         if (user) fetchHabits();
         else setIsLoading(false);
-    }, [user]);
+    }, [user, lastUpdated]);
 
     const handleEdit = (habit: Habit) => {
         setSelectedHabit(habit);
