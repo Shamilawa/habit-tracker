@@ -102,6 +102,8 @@ export default function WeeklyTrackerPage() {
                         icon: apiHabit.icon,
                         iconColorClass: apiHabit.iconColorClass,
                         iconBgClass: apiHabit.iconBgClass,
+                        startTime: apiHabit.startTime,
+                        endTime: apiHabit.endTime,
                         goal: apiHabit.goal,
                         userId: apiHabit.userId,
                         frequency: apiHabit.frequency || {
@@ -116,6 +118,16 @@ export default function WeeklyTrackerPage() {
                         weeklyProgress: completedCount,
                         dailyStatuses,
                     };
+                });
+
+                // Sort habits
+                transformedHabits.sort((a, b) => {
+                    if (a.startTime && b.startTime) {
+                        return a.startTime.localeCompare(b.startTime);
+                    }
+                    if (a.startTime) return -1;
+                    if (b.startTime) return 1;
+                    return 0;
                 });
 
                 setHabits(transformedHabits);

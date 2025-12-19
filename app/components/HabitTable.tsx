@@ -130,7 +130,7 @@ export default function HabitTable({
 
     return (
         <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
-            <div className="grid grid-cols-[minmax(180px,1.5fr)_repeat(7,1fr)_80px] border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="grid grid-cols-[minmax(220px,1.8fr)_repeat(7,1fr)_80px] border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 <div className="p-4 flex items-center">Habit</div>
 
                 {weekDays.map((day) => {
@@ -177,7 +177,7 @@ export default function HabitTable({
                     return (
                         <div
                             key={habit.id}
-                            className="grid grid-cols-[minmax(180px,1.5fr)_repeat(7,1fr)_80px] group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                            className="grid grid-cols-[minmax(220px,1.8fr)_repeat(7,1fr)_80px] group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
                         >
                             <div className="p-4 flex items-center gap-3">
                                 <div
@@ -192,9 +192,15 @@ export default function HabitTable({
                                     >
                                         {habit.name}
                                     </span>
-                                    <span className="text-xs text-slate-500 dark:text-slate-500">
-                                        {habit.category}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500 dark:text-slate-500">
+                                        <span className="font-medium text-slate-600 dark:text-slate-400">
+                                            {habit.category}
+                                        </span>
+                                        <span>•</span>
+                                        <span>
+                                            {habit.startTime && habit.endTime ? `${habit.startTime} - ${habit.endTime}` : "Any time"}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
