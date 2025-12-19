@@ -9,6 +9,7 @@ import { Habit } from "@/app/types/habit";
 import { cn } from "@/lib/utils";
 import { HabitSkeleton, JournalSkeleton } from "./ui/Skeleton";
 import { useAuth } from "@/app/context/AuthContext";
+import { COLORS } from "@/app/utils/constants";
 
 // Helper for date formatting
 const formatDate = (date: Date) => {
@@ -115,9 +116,39 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         }
     };
 
+    // Fetch Categories
+    const [categories, setCategories] = useState<any[]>([]);
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!user) return;
+            try {
+                const token = await user.getIdToken();
+                const res = await fetch("/api/categories", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCategories(data);
+                }
+            } catch (error) {
+                console.error("Failed to load categories", error);
+            }
+        };
+        fetchCategories();
+    }, [user]);
+
     const activeHabits = useMemo(() => {
         const dayName = getDayName(date);
-        return habits.filter((h) => (h.frequency as any)[dayName]);
+        const filtered = habits.filter((h) => (h.frequency as any)[dayName]);
+
+        return filtered.sort((a, b) => {
+            if (a.startTime && b.startTime) {
+                return a.startTime.localeCompare(b.startTime);
+            }
+            if (a.startTime) return -1;
+            if (b.startTime) return 1;
+            return 0;
+        });
     }, [habits, date]);
 
     const getHabitStatus = useCallback((habit: Habit) => {
@@ -125,10 +156,28 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         return entry ? entry.status : "pending";
     }, [dateString]);
 
-    const getSolidBgClass = (habitColorClass: string) => {
-        const match = habitColorClass.match(/text-([a-z]+)-/);
-        const color = match ? match[1] : "indigo";
-        return COLOR_MAP[color] || COLOR_MAP["indigo"];
+
+    // Helper to get habit visuals (Category > Habit)
+    const getHabitVisuals = (habit: Habit) => {
+        const category = categories.find(c => c.id === habit.categoryId);
+        if (category && category.color) {
+            const colorDef = Object.values(COLORS).find(c => c.name === category.color);
+            if (colorDef) {
+                return {
+                    icon: habit.icon || "circle", // Habit has its own icon
+                    colorClass: colorDef.textClass, // Category provides color
+                    bgClass: colorDef.bgClass,
+                    baseColor: colorDef
+                };
+            }
+        }
+        // Fallback
+        return {
+            icon: habit.icon,
+            colorClass: habit.iconColorClass,
+            bgClass: habit.iconBgClass,
+            baseColor: null
+        };
     };
 
     const handleToggle = async (habitId: string) => {
@@ -141,9 +190,9 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         if (currentStatus === "none" || currentStatus === "pending") {
             newStatus = "completed";
         } else if (currentStatus === "completed") {
-            newStatus = "failed"; // Or back to pending/none? Table logic says failed.
+            newStatus = "failed";
         } else {
-            newStatus = "none"; // Reset
+            newStatus = "none";
         }
 
         // Optimistic Update
@@ -151,9 +200,7 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
             const updated = prev.map(h => {
                 if (h.id !== habitId) return h;
 
-                // Remove old status for this date if exists
                 const otherStatuses = h.dailyStatuses.filter(s => s.date !== dateString);
-                // Add new status
                 return {
                     ...h,
                     dailyStatuses: [...otherStatuses, { date: dateString, status: newStatus as any }]
@@ -178,21 +225,20 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         } catch (error) {
             console.error("Error updating habit:", error);
             toast.error("Failed to update habit status");
-            // Revert logic could go here
         }
     };
 
     const handlePrevDay = () => {
         const newDate = new Date(date);
         newDate.setDate(date.getDate() - 1);
-        setJournalContent(""); // Clear immediately to prevent stale data
+        setJournalContent("");
         setDate(newDate);
     };
 
     const handleNextDay = () => {
         const newDate = new Date(date);
         newDate.setDate(date.getDate() + 1);
-        setJournalContent(""); // Clear immediately to prevent stale data
+        setJournalContent("");
         setDate(newDate);
     };
 
@@ -200,7 +246,7 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         const today = new Date();
         const todayStr = getYyyyMmDd(today);
         if (todayStr !== dateString) {
-            setJournalContent(""); // Clear immediately to prevent stale data
+            setJournalContent("");
             setDate(today);
         }
     };
@@ -277,17 +323,24 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
                                     const status = getHabitStatus(habit);
                                     const isCompleted = status === "completed";
                                     const isFailed = status === "failed";
+                                    const visual = getHabitVisuals(habit);
 
                                     return (
                                         <div key={habit.id} className="group flex items-center justify-between p-3 bg-white dark:bg-surface-dark rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all">
                                             <div className="flex items-center gap-3">
-                                                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center transition-colors", habit.iconBgClass, habit.iconColorClass)}>
-                                                    <Icon name={habit.icon} className="text-xl" />
+                                                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center transition-colors", visual.bgClass, visual.colorClass)}>
+                                                    <Icon name={visual.icon} className="text-xl" />
                                                 </div>
                                                 <div>
                                                     <h3 className="font-medium text-slate-900 dark:text-white text-sm">{habit.name}</h3>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                        {habit.goal > 0 ? `${habit.goal} mins` : "Daily"}
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                                        <span className="font-medium text-slate-600 dark:text-slate-300">
+                                                            {habit.category}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span>
+                                                            {habit.startTime && habit.endTime ? `${habit.startTime} - ${habit.endTime}` : "Any time"}
+                                                        </span>
                                                     </p>
                                                 </div>
                                             </div>
@@ -298,15 +351,15 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
                                                 className={cn(
                                                     "w-8 h-8 rounded-md flex items-center justify-center transition-all",
                                                     isCompleted
-                                                        ? `${getSolidBgClass(habit.iconColorClass)} text-white shadow-sm border border-transparent scale-100`
+                                                        ? `${visual.baseColor?.solidClass || "bg-indigo-600 dark:bg-indigo-400"} text-white shadow-sm border border-transparent scale-100`
                                                         : isFailed
                                                             ? "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-500"
-                                                            : "bg-white dark:bg-surface-dark border-2 border-slate-300 dark:border-slate-600 text-transparent hover:border-primary dark:hover:border-primary-dark"
+                                                            : `bg-white dark:bg-surface-dark border-2 border-slate-300 dark:border-slate-600 text-transparent ${visual.baseColor?.hoverBorderClass || "hover:border-primary dark:hover:border-primary-dark"}`
                                                 )}
                                             >
                                                 {isCompleted && <Icon name="check" className="text-sm font-bold" />}
                                                 {isFailed && <Icon name="close" className="text-sm font-bold" />}
-                                                {!isCompleted && !isFailed && <Icon name="check" className={cn("text-sm font-bold opacity-0 hover:opacity-100 transition-opacity", habit.iconColorClass)} />}
+                                                {!isCompleted && !isFailed && <Icon name="check" className={cn("text-sm font-bold opacity-0 hover:opacity-100 transition-opacity", visual.colorClass)} />}
                                             </button>
                                         </div>
                                     );

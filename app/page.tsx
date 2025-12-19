@@ -47,10 +47,13 @@ export default function Home() {
                             userId: h.userId,
                             name: h.name,
                             category: h.category,
+                            categoryId: h.categoryId,
                             icon: h.icon,
                             iconColorClass: h.iconColorClass,
                             iconBgClass: h.iconBgClass,
                             goal: h.goal,
+                            startTime: h.startTime,
+                            endTime: h.endTime,
                             frequency: h.frequency || {
                                 sunday: true, monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true
                             },

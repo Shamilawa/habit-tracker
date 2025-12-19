@@ -6,76 +6,12 @@ import { Habit } from "@/app/types/habit"; // Import Habit type
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 
-const ICONS = [
-    "directions_run",
-    "menu_book",
-    "laptop_mac",
-    "self_improvement",
-    "water_drop",
-    "fitness_center",
-    "code",
-    "work",
-    "bed",
-    "local_dining",
-    "savings",
-    "palette",
-    "music_note",
-    "psychology",
-    "home",
-];
+import { ICONS, COLORS } from "@/app/utils/constants";
 
-const COLORS = [
-    {
-        name: "Blue",
-        class: "bg-blue-500",
-        textClass: "text-blue-600 dark:text-blue-400",
-        bgClass: "bg-blue-100 dark:bg-blue-900/50",
-    },
-    {
-        name: "Purple",
-        class: "bg-purple-500",
-        textClass: "text-purple-600 dark:text-purple-400",
-        bgClass: "bg-purple-100 dark:bg-purple-900/50",
-    },
-    {
-        name: "Orange",
-        class: "bg-orange-500",
-        textClass: "text-orange-600 dark:text-orange-400",
-        bgClass: "bg-orange-100 dark:bg-orange-900/50",
-    },
-    {
-        name: "Teal",
-        class: "bg-teal-500",
-        textClass: "text-teal-600 dark:text-teal-400",
-        bgClass: "bg-teal-100 dark:bg-teal-900/50",
-    },
-    {
-        name: "Emerald",
-        class: "bg-emerald-500",
-        textClass: "text-emerald-600 dark:text-emerald-400",
-        bgClass: "bg-emerald-100 dark:bg-emerald-900/50",
-    },
-    {
-        name: "Rose",
-        class: "bg-rose-500",
-        textClass: "text-rose-600 dark:text-rose-400",
-        bgClass: "bg-rose-100 dark:bg-rose-900/50",
-    },
-    {
-        name: "Indigo",
-        class: "bg-indigo-500",
-        textClass: "text-indigo-600 dark:text-indigo-400",
-        bgClass: "bg-indigo-100 dark:bg-indigo-900/50",
-    },
-    {
-        name: "Cyan",
-        class: "bg-cyan-500",
-        textClass: "text-cyan-600 dark:text-cyan-400",
-        bgClass: "bg-cyan-100 dark:bg-cyan-900/50",
-    },
-];
+// Removed static CATEGORIES constant, using dynamic state
+const DEFAULT_CATEGORIES = ["Health", "Learning", "Productivity", "Wellness", "Other"];
 
-const CATEGORIES = ["Health", "Learning", "Productivity", "Wellness", "Other"];
+import { ICategory } from "@/models/Category"; // Assuming shared model or define locally if strictly frontend
 
 interface CreateHabitModalProps {
     initialData?: Habit | null; // Optional prop for editing
@@ -106,20 +42,74 @@ export default function CreateHabitModal({
     const [name, setName] = useState("");
 
     // Category State
-    const [categoryMode, setCategoryMode] = useState<"select" | "input">(
-        "select"
-    );
-    const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
+    const [categories, setCategories] = useState<ICategory[]>([]);
+    const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+    const [categoryMode, setCategoryMode] = useState<"select" | "input">("select");
+    const [selectedCategoryId, setSelectedCategoryId] = useState("");
     const [customCategory, setCustomCategory] = useState("");
+
+    // Visuals State (Now tied to Category creation mainly)
+    const [selectedIcon, setSelectedIcon] = useState(ICONS[0]);
+    const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+
+    // Fetch Categories
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!user) return;
+            setIsLoadingCategories(true);
+            try {
+                const token = await user.getIdToken();
+                const res = await fetch("/api/categories", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCategories(data);
+                }
+            } catch (error) {
+                console.error("Failed to load categories", error);
+            } finally {
+                setIsLoadingCategories(false);
+            }
+        };
+
+        if (shouldShow) {
+            fetchCategories();
+        }
+    }, [shouldShow, user]);
+
+    // Set initial category selection when editing or when categories load
+    useEffect(() => {
+        if (initialData && categories.length > 0) {
+            // Try to find category by ID first, then by name (migration case)
+            const cat = categories.find(c => c.id === initialData.categoryId) || categories.find(c => c.name === initialData.category);
+            if (cat) {
+                setCategoryMode("select");
+                setSelectedCategoryId(cat.id || "");
+                // If the category has icon/color, we might want to "show" them, but we don't edit them for the habit anymore unless we edit the category (which is out of scope here?)
+                // Actually, for this task, "Habit" takes "Category's" visual.
+            } else {
+                setCategoryMode("input");
+                setCustomCategory(initialData.category);
+                // If it was a custom legacy category with no ID, we might default visuals to what the habit had
+                setSelectedIcon(initialData.icon || ICONS[0]);
+                const foundColor = COLORS.find(c => c.textClass === initialData.iconColorClass);
+                if (foundColor) setSelectedColor(foundColor);
+            }
+        } else if (!initialData && categories.length > 0 && !selectedCategoryId) {
+            // Default to first category if creating new
+            setSelectedCategoryId(categories[0].id || "");
+        }
+    }, [initialData, categories, shouldShow]);
+
+    // Time State
+    const [startTime, setStartTime] = useState("");
+    const [endTime, setEndTime] = useState("");
 
     // Goal State (Day Selection)
     const [selectedDays, setSelectedDays] = useState<boolean[]>(
         Array(7).fill(true)
     ); // Default all days
-
-    // Visuals State
-    const [selectedIcon, setSelectedIcon] = useState(ICONS[0]);
-    const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -127,15 +117,7 @@ export default function CreateHabitModal({
     useEffect(() => {
         if (initialData) {
             setName(initialData.name);
-            if (CATEGORIES.includes(initialData.category)) {
-                setCategoryMode("select");
-                setSelectedCategory(initialData.category);
-            } else {
-                setCategoryMode("input");
-                setCustomCategory(initialData.category);
-            }
 
-            // Map frequency object back to array [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
             if (initialData.frequency) {
                 setSelectedDays([
                     initialData.frequency.monday ?? true,
@@ -148,31 +130,26 @@ export default function CreateHabitModal({
                 ]);
             }
 
-            setSelectedIcon(initialData.icon || ICONS[0]);
-            // Find color by matching class or default
-            const foundColor = COLORS.find(
-                (c) => c.textClass === initialData.iconColorClass
-            );
-            if (foundColor) setSelectedColor(foundColor);
+            setStartTime(initialData.startTime || "");
+            setEndTime(initialData.endTime || "");
         } else if (shouldShow && !initialData) {
-            // Reset form for create mode ONLY when opening fresh
-            // This prevents resetting if we are just re-rendering while open
-            // logic: if we just opened and have no data, reset.
-            // But checking 'shouldShow' in dependency array is tricky if we want to preserve input during re-renders.
-            // Better: Reset on close? or when isCreateHabitModalOpen changes to true?
-            // Simplified: If not editing, use default values.
+            // Reset logic
         }
-    }, [initialData, isCreateHabitModalOpen, isOpen]); // Added isOpen
+    }, [initialData, isCreateHabitModalOpen, isOpen]);
 
     // Reset when opening in CREATE mode (no initialData)
     useEffect(() => {
         if (shouldShow && !initialData) {
             setName("");
             setCategoryMode("select");
-            setSelectedCategory(CATEGORIES[0]);
+            if (categories.length > 0) setSelectedCategoryId(categories[0].id || "");
+            else setCategoryMode("input");
             setSelectedDays(Array(7).fill(true));
+            // Reset visuals to default
             setSelectedIcon(ICONS[0]);
             setSelectedColor(COLORS[0]);
+            setStartTime("");
+            setEndTime("");
         }
     }, [shouldShow, initialData]);
 
@@ -182,8 +159,12 @@ export default function CreateHabitModal({
         if (e.target.value === "ADD_NEW") {
             setCategoryMode("input");
             setCustomCategory("");
+            // Reset visuals for new category creation
+            setSelectedIcon(ICONS[0]);
+            setSelectedColor(COLORS[0]);
         } else {
-            setSelectedCategory(e.target.value);
+            setCategoryMode("select");
+            setSelectedCategoryId(e.target.value);
         }
     };
 
@@ -193,19 +174,75 @@ export default function CreateHabitModal({
         setSelectedDays(newDays);
     };
 
+    // Helper to get current display visuals
+    const getCurrentVisuals = () => {
+        if (categoryMode === "select") {
+            const cat = categories.find(c => c.id === selectedCategoryId);
+            if (cat) {
+                return {
+                    icon: selectedIcon, // Icon is always per-habit now
+                    color: (COLORS.find(c => c.name === cat.color) || COLORS[0])
+                };
+            }
+        }
+        return { icon: selectedIcon, color: selectedColor };
+    };
+
+    const currentVisuals = getCurrentVisuals();
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        const category =
-            categoryMode === "select" ? selectedCategory : customCategory;
-        const goal = selectedDays.filter((d) => d).length; // Count selected days
+        const token = await user?.getIdToken();
 
-        if (!name || (categoryMode === "input" && !category) || goal === 0) {
-            toast.error("Please fill in all fields");
-            setIsSubmitting(false);
-            return;
+        let finalCategoryId = selectedCategoryId;
+        let finalCategoryName = "";
+        let finalIcon = selectedIcon;
+        let finalColor = selectedColor;
+
+        // If creating new category
+        if (categoryMode === "input") {
+            if (!user || !token) return;
+            try {
+                // Save ONLY Color (removed icon)
+                const res = await fetch("/api/categories", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        name: customCategory,
+                        color: selectedColor.name
+                    })
+                });
+                if (!res.ok) throw new Error("Failed to create category");
+                const newCat = await res.json();
+                finalCategoryId = newCat.id;
+                finalCategoryName = newCat.name;
+
+                // Color comes from new category (which is selectedColor)
+                finalColor = COLORS.find(c => c.name === newCat.color) || selectedColor;
+
+            } catch (err) {
+                toast.error("Failed to create new category");
+                setIsSubmitting(false);
+                return;
+            }
+        } else {
+            const selectedCat = categories.find(c => c.id === selectedCategoryId);
+            if (selectedCat) {
+                finalCategoryName = selectedCat.name;
+                finalCategoryId = selectedCat.id!;
+                finalColor = COLORS.find(c => c.name === selectedCat.color) || COLORS[0];
+            }
         }
+
+        // Icon is ALWAYS selectedIcon (Habit Level)
+        finalIcon = selectedIcon;
+
+        const goal = selectedDays.filter((d) => d).length;
 
         const frequency = {
             monday: selectedDays[0],
@@ -217,14 +254,23 @@ export default function CreateHabitModal({
             sunday: selectedDays[6],
         };
 
+        if (!name || (categoryMode === "input" && !finalCategoryName && !customCategory) || goal === 0) {
+            toast.error("Please fill in all fields");
+            setIsSubmitting(false);
+            return;
+        }
+
         const habitData = {
             name,
-            category,
+            category: finalCategoryName,
+            categoryId: finalCategoryId,
             goal,
             frequency,
-            icon: selectedIcon,
-            iconColorClass: selectedColor.textClass,
-            iconBgClass: selectedColor.bgClass,
+            icon: finalIcon,
+            iconColorClass: finalColor.textClass,
+            iconBgClass: finalColor.bgClass,
+            startTime,
+            endTime,
         };
 
         try {
@@ -257,11 +303,10 @@ export default function CreateHabitModal({
 
             if (!res.ok) throw new Error("Failed to save habit");
 
-            triggerRefresh(); // Refresh global context
-            if (onSuccess) onSuccess(); // Refresh parent if needed
-            handleClose(); // Close modal
+            triggerRefresh();
+            if (onSuccess) onSuccess();
+            handleClose();
 
-            // Clear form if create
             if (!initialData) {
                 setName("");
                 setSelectedDays(Array(7).fill(true));
@@ -276,7 +321,7 @@ export default function CreateHabitModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-surface-dark rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-surface-dark rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                         {initialData ? "Edit Habit" : "Create New Habit"}
@@ -305,42 +350,107 @@ export default function CreateHabitModal({
                         />
                     </div>
 
+                    {/* Icon Selection (Per Habit) */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Icon</label>
+                        <div className="grid grid-cols-8 gap-2">
+                            {ICONS.map((icon) => (
+                                <button
+                                    key={icon}
+                                    type="button"
+                                    onClick={() => setSelectedIcon(icon)}
+                                    className={`p-2 rounded-lg flex items-center justify-center transition-all ${selectedIcon === icon
+                                        ? "bg-indigo-100 text-indigo-600 ring-2 ring-indigo-600"
+                                        : "bg-white dark:bg-slate-900 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                        }`}
+                                >
+                                    <span className="material-icons-round text-xl">
+                                        {icon}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Category */}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                             Category
                         </label>
                         {categoryMode === "select" ? (
-                            <select
-                                value={selectedCategory}
-                                onChange={handleCategoryChange}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                            >
-                                {CATEGORIES.map((c) => (
-                                    <option key={c} value={c}>
-                                        {c}
-                                    </option>
-                                ))}
-                                <option value="ADD_NEW">+ Add new...</option>
-                            </select>
-                        ) : (
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={customCategory}
-                                    onChange={(e) =>
-                                        setCustomCategory(e.target.value)
-                                    }
-                                    placeholder="Enter new category"
-                                    className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setCategoryMode("select")}
-                                    className="px-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                            <div className="space-y-3">
+                                <select
+                                    value={selectedCategoryId}
+                                    onChange={handleCategoryChange}
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                                 >
-                                    Cancel
-                                </button>
+                                    {categories.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}
+                                        </option>
+                                    ))}
+                                    <option value="ADD_NEW">+ Add new...</option>
+                                </select>
+
+                                {/* Preview of selected category color */}
+                                {selectedCategoryId && (
+                                    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${currentVisuals.color.bgClass}`}>
+                                            <div className={`w-4 h-4 rounded-full ${currentVisuals.color.class}`} />
+                                        </div>
+                                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                                            Category Color: {currentVisuals.color.name}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-4 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={customCategory}
+                                        onChange={(e) =>
+                                            setCustomCategory(e.target.value)
+                                        }
+                                        placeholder="Enter new category name"
+                                        className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setCategoryMode("select")}
+                                        className="px-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        Category Color
+                                    </label>
+
+                                    {/* Color Selection for New Category */}
+                                    <div>
+                                        <div className="grid grid-cols-8 gap-2">
+                                            {COLORS.map((color) => (
+                                                <button
+                                                    key={color.name}
+                                                    type="button"
+                                                    onClick={() => setSelectedColor(color)}
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor.name === color.name
+                                                        ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-900"
+                                                        : ""
+                                                        }`}
+                                                >
+                                                    <div
+                                                        className={`w-full h-full rounded-full ${color.class}`}
+                                                    ></div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -373,51 +483,29 @@ export default function CreateHabitModal({
                         </div>
                     </div>
 
-                    {/* Icons */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Icon
-                        </label>
-                        <div className="grid grid-cols-8 gap-2">
-                            {ICONS.map((icon) => (
-                                <button
-                                    key={icon}
-                                    type="button"
-                                    onClick={() => setSelectedIcon(icon)}
-                                    className={`p-2 rounded-lg flex items-center justify-center transition-all ${selectedIcon === icon
-                                        ? "bg-indigo-100 text-indigo-600 ring-2 ring-indigo-600"
-                                        : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                        }`}
-                                >
-                                    <span className="material-icons-round text-xl">
-                                        {icon}
-                                    </span>
-                                </button>
-                            ))}
+                    {/* Time Range */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Start Time <span className="text-slate-400 font-normal">(Optional)</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={startTime}
+                                onChange={(e) => setStartTime(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            />
                         </div>
-                    </div>
-
-                    {/* Colors */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Color
-                        </label>
-                        <div className="grid grid-cols-8 gap-2">
-                            {COLORS.map((color) => (
-                                <button
-                                    key={color.name}
-                                    type="button"
-                                    onClick={() => setSelectedColor(color)}
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor.name === color.name
-                                        ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-900"
-                                        : ""
-                                        }`}
-                                >
-                                    <div
-                                        className={`w-full h-full rounded-full ${color.class}`}
-                                    ></div>
-                                </button>
-                            ))}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                End Time <span className="text-slate-400 font-normal">(Optional)</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={endTime}
+                                onChange={(e) => setEndTime(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            />
                         </div>
                     </div>
 
@@ -444,7 +532,7 @@ export default function CreateHabitModal({
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }
