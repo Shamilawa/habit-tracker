@@ -112,6 +112,10 @@ export default function CreateHabitModal({
     const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
     const [customCategory, setCustomCategory] = useState("");
 
+    // Time State
+    const [startTime, setStartTime] = useState("");
+    const [endTime, setEndTime] = useState("");
+
     // Goal State (Day Selection)
     const [selectedDays, setSelectedDays] = useState<boolean[]>(
         Array(7).fill(true)
@@ -154,6 +158,9 @@ export default function CreateHabitModal({
                 (c) => c.textClass === initialData.iconColorClass
             );
             if (foundColor) setSelectedColor(foundColor);
+
+            setStartTime(initialData.startTime || "");
+            setEndTime(initialData.endTime || "");
         } else if (shouldShow && !initialData) {
             // Reset form for create mode ONLY when opening fresh
             // This prevents resetting if we are just re-rendering while open
@@ -173,6 +180,8 @@ export default function CreateHabitModal({
             setSelectedDays(Array(7).fill(true));
             setSelectedIcon(ICONS[0]);
             setSelectedColor(COLORS[0]);
+            setStartTime("");
+            setEndTime("");
         }
     }, [shouldShow, initialData]);
 
@@ -225,6 +234,8 @@ export default function CreateHabitModal({
             icon: selectedIcon,
             iconColorClass: selectedColor.textClass,
             iconBgClass: selectedColor.bgClass,
+            startTime,
+            endTime,
         };
 
         try {
@@ -373,6 +384,32 @@ export default function CreateHabitModal({
                         </div>
                     </div>
 
+                    {/* Time Range */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Start Time <span className="text-slate-400 font-normal">(Optional)</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={startTime}
+                                onChange={(e) => setStartTime(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                End Time <span className="text-slate-400 font-normal">(Optional)</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={endTime}
+                                onChange={(e) => setEndTime(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            />
+                        </div>
+                    </div>
+
                     {/* Icons */}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -444,7 +481,7 @@ export default function CreateHabitModal({
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

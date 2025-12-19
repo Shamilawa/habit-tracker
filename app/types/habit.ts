@@ -15,6 +15,8 @@ export interface Habit {
     iconColorClass: string;
     iconBgClass: string;
     goal: number; // e.g. 5 days per week
+    startTime?: string; // HH:mm
+    endTime?: string; // HH:mm
     frequency: {
         sunday: boolean;
         monday: boolean;

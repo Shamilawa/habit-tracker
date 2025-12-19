@@ -51,6 +51,8 @@ export default function HabitManagementPage() {
                 iconColorClass: h.iconColorClass,
                 iconBgClass: h.iconBgClass,
                 goal: h.goal,
+                startTime: h.startTime,
+                endTime: h.endTime,
                 userId: h.userId, // Include userId
                 frequency: h.frequency || {
                     sunday: true,

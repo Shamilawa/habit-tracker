@@ -51,6 +51,8 @@ export default function Home() {
                             iconColorClass: h.iconColorClass,
                             iconBgClass: h.iconBgClass,
                             goal: h.goal,
+                            startTime: h.startTime,
+                            endTime: h.endTime,
                             frequency: h.frequency || {
                                 sunday: true, monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true
                             },

@@ -24,6 +24,8 @@ export interface IHabit {
     iconColorClass: string;
     iconBgClass: string;
     goal: number;
+    startTime?: string;
+    endTime?: string;
     frequency: IUniqueFrequency;
     history: IHabitHistory[];
 }
@@ -46,6 +48,8 @@ export const habitConverter = {
             iconColorClass: data.iconColorClass,
             iconBgClass: data.iconBgClass,
             goal: data.goal,
+            startTime: data.startTime,
+            endTime: data.endTime,
             frequency: data.frequency,
             history: data.history || [],
         };

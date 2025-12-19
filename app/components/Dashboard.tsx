@@ -117,7 +117,17 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
 
     const activeHabits = useMemo(() => {
         const dayName = getDayName(date);
-        return habits.filter((h) => (h.frequency as any)[dayName]);
+        const filtered = habits.filter((h) => (h.frequency as any)[dayName]);
+
+        return filtered.sort((a, b) => {
+            if (a.startTime && b.startTime) {
+                return a.startTime.localeCompare(b.startTime);
+            }
+            // Put habits with time before habits without time
+            if (a.startTime) return -1;
+            if (b.startTime) return 1;
+            return 0;
+        });
     }, [habits, date]);
 
     const getHabitStatus = useCallback((habit: Habit) => {
@@ -287,7 +297,7 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
                                                 <div>
                                                     <h3 className="font-medium text-slate-900 dark:text-white text-sm">{habit.name}</h3>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                        {habit.goal > 0 ? `${habit.goal} mins` : "Daily"}
+                                                        {habit.startTime && habit.endTime ? `${habit.startTime} - ${habit.endTime}` : "Any time"}
                                                     </p>
                                                 </div>
                                             </div>
