@@ -1,6 +1,9 @@
 import React from "react";
 import Icon from "./ui/Icon";
 import { Habit, DayStatus } from "@/app/types/habit";
+import { Category } from "@/app/types/category";
+import { COLORS } from "@/app/utils/constants";
+import { cn } from "@/lib/utils";
 
 interface WeekDay {
     dayName: string;
@@ -11,6 +14,7 @@ interface WeekDay {
 
 interface HabitTableProps {
     habits: Habit[];
+    categories?: Category[];
     weekDays: WeekDay[];
     onToggleHabit?: (habitId: string, date: string) => void;
 }
@@ -28,6 +32,7 @@ const COLOR_MAP: Record<string, string> = {
 
 export default function HabitTable({
     habits,
+    categories = [],
     weekDays,
     onToggleHabit,
 }: HabitTableProps) {
@@ -49,15 +54,39 @@ export default function HabitTable({
         return COLOR_MAP[color] || COLOR_MAP["indigo"];
     };
 
+    // Helper to get habit visuals (Category > Habit)
+    const getHabitVisuals = (habit: Habit) => {
+        const category = categories.find(c => c.id === habit.categoryId);
+        if (category && category.color) {
+            const colorDef = Object.values(COLORS).find(c => c.name === category.color);
+            if (colorDef) {
+                return {
+                    icon: habit.icon || "circle", // Habit has its own icon
+                    colorClass: colorDef.textClass, // Category provides color
+                    bgClass: colorDef.bgClass,
+                    baseColor: colorDef
+                };
+            }
+        }
+        // Fallback
+        return {
+            icon: habit.icon,
+            colorClass: habit.iconColorClass,
+            bgClass: habit.iconBgClass,
+            baseColor: null,
+        };
+    };
+
     const renderDayCell = (
         status: DayStatus,
-        habitColorClass: string,
-        habitBgClass: string,
+        colorClass: string,
+        bgClass: string,
         isToday: boolean = false,
-        onClick: (e: React.MouseEvent) => void
+        onClick: (e: React.MouseEvent) => void,
+        baseColor: typeof COLORS[0] | null = null
     ) => {
         if (status === "completed") {
-            const filledBgClass = getSolidBgClass(habitColorClass);
+            const filledBgClass = baseColor?.solidClass || "bg-indigo-600 dark:bg-indigo-400";
             return (
                 <button
                     onClick={onClick}
@@ -76,22 +105,24 @@ export default function HabitTable({
                 </button>
             );
         } else if (status === "pending" && isToday) {
+            const hoverBorderClass = baseColor?.hoverBorderClass || "hover:border-primary dark:hover:border-primary-dark";
             return (
                 <button
                     onClick={onClick}
-                    className="w-8 h-8 rounded-md bg-white dark:bg-surface-dark border-2 border-slate-300 dark:border-slate-600 text-transparent hover:border-primary dark:hover:border-primary-dark transition-all flex items-center justify-center"
+                    className={`w-8 h-8 rounded-md bg-white dark:bg-surface-dark border-2 border-slate-300 dark:border-slate-600 text-transparent ${hoverBorderClass} transition-all flex items-center justify-center`}
                 >
                     <Icon
                         name="check"
-                        className={`text-sm opacity-0 hover:opacity-100 ${habitColorClass}`}
+                        className={`text-sm opacity-0 hover:opacity-100 ${colorClass}`}
                     />
                 </button>
             );
         } else {
+            const hoverBorderClass = baseColor?.hoverBorderClass || "hover:border-primary dark:hover:border-primary-dark";
             return (
                 <button
                     onClick={onClick}
-                    className={`w-8 h-8 rounded-md bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary-dark flex items-center justify-center transition-colors`}
+                    className={`w-8 h-8 rounded-md bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 ${hoverBorderClass} flex items-center justify-center transition-colors`}
                 ></button>
             );
         }
@@ -114,20 +145,18 @@ export default function HabitTable({
                     return (
                         <div key={day.fullDate} className={headerClass}>
                             <div
-                                className={`opacity-70 ${
-                                    isToday
-                                        ? "text-primary dark:text-primary-dark"
-                                        : ""
-                                }`}
+                                className={`opacity-70 ${isToday
+                                    ? "text-primary dark:text-primary-dark"
+                                    : ""
+                                    }`}
                             >
                                 {day.dayName}
                             </div>
                             <div
-                                className={`${
-                                    isToday
-                                        ? "text-primary dark:text-primary-dark"
-                                        : "text-slate-900 dark:text-white"
-                                } text-sm font-bold mt-1`}
+                                className={`${isToday
+                                    ? "text-primary dark:text-primary-dark"
+                                    : "text-slate-900 dark:text-white"
+                                    } text-sm font-bold mt-1`}
                             >
                                 {day.date}
                             </div>
@@ -143,113 +172,117 @@ export default function HabitTable({
                 </div>
             </div>
             <div className="divide-y divide-border-light dark:divide-border-dark">
-                {habits.map((habit) => (
-                    <div
-                        key={habit.id}
-                        className="grid grid-cols-[minmax(180px,1.5fr)_repeat(7,1fr)_80px] group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                    >
-                        <div className="p-4 flex items-center gap-3">
-                            <div
-                                className={`w-8 h-8 rounded ${habit.iconBgClass} ${habit.iconColorClass} flex items-center justify-center`}
-                            >
-                                <Icon name={habit.icon} className="text-lg" />
-                            </div>
-                            <div className="flex flex-col min-w-0 pr-2">
-                                <span
-                                    className="text-sm font-medium text-slate-900 dark:text-white truncate"
-                                    title={habit.name}
+                {habits.map((habit) => {
+                    const visual = getHabitVisuals(habit);
+                    return (
+                        <div
+                            key={habit.id}
+                            className="grid grid-cols-[minmax(180px,1.5fr)_repeat(7,1fr)_80px] group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                        >
+                            <div className="p-4 flex items-center gap-3">
+                                <div
+                                    className={`w-8 h-8 rounded ${visual.bgClass} ${visual.colorClass} flex items-center justify-center`}
                                 >
-                                    {habit.name}
-                                </span>
-                                <span className="text-xs text-slate-500 dark:text-slate-500">
-                                    {habit.category}
+                                    <Icon name={visual.icon} className="text-lg" />
+                                </div>
+                                <div className="flex flex-col min-w-0 pr-2">
+                                    <span
+                                        className="text-sm font-medium text-slate-900 dark:text-white truncate"
+                                        title={habit.name}
+                                    >
+                                        {habit.name}
+                                    </span>
+                                    <span className="text-xs text-slate-500 dark:text-slate-500">
+                                        {habit.category}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {habit.dailyStatuses.map((day, index) => {
+                                // Find corresponding weekDay info for styling (e.g. isToday, isWeekend)
+                                // Assuming dailyStatuses matches weekDays order
+                                const dayInfo = weekDays[index];
+                                const isToday = dayInfo?.isToday || false;
+                                // Check for weekend (Sat/Sun)
+                                const isWeekend =
+                                    dayInfo?.dayName === "Sat" ||
+                                    dayInfo?.dayName === "Sun";
+
+                                // Check frequency for this day (Sun=0, Mon=1, etc.)
+                                // weekDays are sorted by date, need to find day index (0-6)
+                                // Assuming frequency array matches [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
+                                // Parse date strictly from string to avoid timezone shifts (e.g. UTC->Local)
+                                const [y, m, d] = day.date.split("-").map(Number);
+                                const localDayIndex = new Date(
+                                    y,
+                                    m - 1,
+                                    d
+                                ).getDay(); // 0=Sun, 1=Mon...
+
+                                const dayKeys = [
+                                    "sunday",
+                                    "monday",
+                                    "tuesday",
+                                    "wednesday",
+                                    "thursday",
+                                    "friday",
+                                    "saturday",
+                                ] as const;
+                                const dayKey = dayKeys[localDayIndex];
+
+                                const isScheduled = habit.frequency
+                                    ? habit.frequency[dayKey]
+                                    : true;
+
+                                let cellClass =
+                                    "p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center";
+                                if (isWeekend) {
+                                    cellClass +=
+                                        " bg-slate-100/50 dark:bg-slate-900/50";
+                                }
+                                if (isToday) {
+                                    cellClass += " bg-primary/5 dark:bg-primary/10";
+                                }
+                                // if (!isScheduled) {
+                                //     cellClass += " opacity-40"; // Dim non-scheduled days
+                                // } Removed to keep border opaque
+
+                                return (
+                                    <div key={day.date} className={cellClass}>
+                                        {isScheduled ? (
+                                            renderDayCell(
+                                                day.status,
+                                                visual.colorClass,
+                                                visual.bgClass,
+                                                isToday,
+                                                (e) =>
+                                                    handleToggle(
+                                                        habit.id,
+                                                        day.date,
+                                                        e
+                                                    ),
+                                                visual.baseColor
+                                            )
+                                        ) : (
+                                            <div
+                                                className="w-8 h-8 flex items-center justify-center cursor-help"
+                                                title="Not scheduled for this day"
+                                            >
+                                                <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+
+                            <div className="p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center">
+                                <span className="text-xs font-semibold text-slate-400">
+                                    {habit.weeklyProgress}/{habit.goal}
                                 </span>
                             </div>
                         </div>
-
-                        {habit.dailyStatuses.map((day, index) => {
-                            // Find corresponding weekDay info for styling (e.g. isToday, isWeekend)
-                            // Assuming dailyStatuses matches weekDays order
-                            const dayInfo = weekDays[index];
-                            const isToday = dayInfo?.isToday || false;
-                            // Check for weekend (Sat/Sun)
-                            const isWeekend =
-                                dayInfo?.dayName === "Sat" ||
-                                dayInfo?.dayName === "Sun";
-
-                            // Check frequency for this day (Sun=0, Mon=1, etc.)
-                            // weekDays are sorted by date, need to find day index (0-6)
-                            // Assuming frequency array matches [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
-                            // Parse date strictly from string to avoid timezone shifts (e.g. UTC->Local)
-                            const [y, m, d] = day.date.split("-").map(Number);
-                            const localDayIndex = new Date(
-                                y,
-                                m - 1,
-                                d
-                            ).getDay(); // 0=Sun, 1=Mon...
-
-                            const dayKeys = [
-                                "sunday",
-                                "monday",
-                                "tuesday",
-                                "wednesday",
-                                "thursday",
-                                "friday",
-                                "saturday",
-                            ] as const;
-                            const dayKey = dayKeys[localDayIndex];
-
-                            const isScheduled = habit.frequency
-                                ? habit.frequency[dayKey]
-                                : true;
-
-                            let cellClass =
-                                "p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center";
-                            if (isWeekend) {
-                                cellClass +=
-                                    " bg-slate-100/50 dark:bg-slate-900/50";
-                            }
-                            if (isToday) {
-                                cellClass += " bg-primary/5 dark:bg-primary/10";
-                            }
-                            // if (!isScheduled) {
-                            //     cellClass += " opacity-40"; // Dim non-scheduled days
-                            // } Removed to keep border opaque
-
-                            return (
-                                <div key={day.date} className={cellClass}>
-                                    {isScheduled ? (
-                                        renderDayCell(
-                                            day.status,
-                                            habit.iconColorClass,
-                                            habit.iconBgClass,
-                                            isToday,
-                                            (e) =>
-                                                handleToggle(
-                                                    habit.id,
-                                                    day.date,
-                                                    e
-                                                )
-                                        )
-                                    ) : (
-                                        <div
-                                            className="w-8 h-8 flex items-center justify-center cursor-help"
-                                            title="Not scheduled for this day"
-                                        >
-                                            <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-
-                        <div className="p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center">
-                            <span className="text-xs font-semibold text-slate-400">
-                                {habit.weeklyProgress}/{habit.goal}
-                            </span>
-                        </div>
-                    </div>
-                ))}
+                    )
+                })}
             </div>
         </div>
     );

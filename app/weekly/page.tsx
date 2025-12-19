@@ -15,6 +15,7 @@ import {
 import { useUI } from "../context/UIContext";
 import { useAuth } from "../context/AuthContext";
 import { StatsSkeleton, TableGridSkeleton } from "../components/ui/Skeleton";
+import { Category } from "@/app/types/category";
 
 interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
     _id?: string;
@@ -50,6 +51,7 @@ export default function WeeklyTrackerPage() {
     }, [currentDate]);
 
     const [habits, setHabits] = useState<Habit[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]); // Use appropriate type
 
     useEffect(() => {
         if (!user && !loading) return; // Wait for user
@@ -96,6 +98,7 @@ export default function WeeklyTrackerPage() {
                         _id: apiHabit.id || apiHabit._id!,
                         name: apiHabit.name,
                         category: apiHabit.category,
+                        categoryId: apiHabit.categoryId, // Ensure this is mapped!
                         icon: apiHabit.icon,
                         iconColorClass: apiHabit.iconColorClass,
                         iconBgClass: apiHabit.iconBgClass,
@@ -123,8 +126,25 @@ export default function WeeklyTrackerPage() {
             }
         };
 
+        const fetchCategories = async () => {
+            if (!user) return;
+            try {
+                const token = await user.getIdToken();
+                const res = await fetch("/api/categories", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCategories(data);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
         if (user) {
             fetchHabits();
+            fetchCategories();
         }
     }, [currentDate, lastUpdated, user, loading]);
 
@@ -277,6 +297,7 @@ export default function WeeklyTrackerPage() {
                 ) : (
                     <HabitTable
                         habits={habits}
+                        categories={categories}
                         weekDays={weekDays}
                         onToggleHabit={handleToggleHabit}
                     />

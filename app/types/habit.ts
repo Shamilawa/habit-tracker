@@ -10,11 +10,14 @@ export interface Habit {
     _id?: string; // Optional MongoDB ID
     userId: string; // Firebase User UID
     name: string;
-    category: string;
+    categoryId?: string; // Link to Category collection
+    category: string; // Denormalized name for display
     icon: string;
     iconColorClass: string;
     iconBgClass: string;
     goal: number; // e.g. 5 days per week
+    startTime?: string; // HH:mm
+    endTime?: string; // HH:mm
     frequency: {
         sunday: boolean;
         monday: boolean;

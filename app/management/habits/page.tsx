@@ -8,6 +8,8 @@ import ConfirmationModal from "../../components/ConfirmationModal";
 import { toast } from "sonner";
 import { TableRowSkeleton } from "../../components/ui/Skeleton";
 import { useAuth } from "@/app/context/AuthContext";
+import { Category } from "@/app/types/category";
+import { COLORS } from "@/app/utils/constants";
 
 interface ApiHabit extends Omit<Habit, "dailyStatuses"> {
     // Frequency matches exactly
@@ -47,10 +49,13 @@ export default function HabitManagementPage() {
                 _id: h.id,
                 name: h.name,
                 category: h.category,
+                categoryId: h.categoryId,
                 icon: h.icon,
                 iconColorClass: h.iconColorClass,
                 iconBgClass: h.iconBgClass,
                 goal: h.goal,
+                startTime: h.startTime,
+                endTime: h.endTime,
                 userId: h.userId, // Include userId
                 frequency: h.frequency || {
                     sunday: true,
@@ -113,6 +118,47 @@ export default function HabitManagementPage() {
         setIsEditModalOpen(true);
     };
 
+    const [categories, setCategories] = useState<Category[]>([]);
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!user) return;
+            try {
+                const token = await user.getIdToken();
+                const res = await fetch("/api/categories", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCategories(data);
+                }
+            } catch (error) {
+                console.error("Failed to load categories", error);
+            }
+        };
+        fetchCategories();
+    }, [user]);
+
+    // Helper to get habit visuals (Category > Habit)
+    const getHabitVisuals = (habit: Habit) => {
+        const category = categories.find(c => c.id === habit.categoryId);
+        if (category && category.color) {
+            const colorDef = Object.values(COLORS).find(c => c.name === category.color);
+            if (colorDef) {
+                return {
+                    icon: habit.icon || "circle",
+                    colorClass: colorDef.textClass,
+                    bgClass: colorDef.bgClass,
+                };
+            }
+        }
+        return {
+            icon: habit.icon,
+            colorClass: habit.iconColorClass,
+            bgClass: habit.iconBgClass,
+        };
+    };
+
     return (
         <div className="flex flex-col h-full overflow-hidden bg-background-light dark:bg-background-dark p-6">
             <div className="flex justify-between items-center mb-6">
@@ -160,65 +206,68 @@ export default function HabitManagementPage() {
                                 </td>
                             </tr>
                         ) : (
-                            habits.map((habit) => (
-                                <tr
-                                    key={habit.id}
-                                    className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
-                                >
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className={`w-8 h-8 rounded flex items-center justify-center ${habit.iconBgClass} ${habit.iconColorClass}`}
+                            habits.map((habit) => {
+                                const visual = getHabitVisuals(habit);
+                                return (
+                                    <tr
+                                        key={habit.id}
+                                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
+                                    >
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div
+                                                    className={`w-8 h-8 rounded flex items-center justify-center ${visual.bgClass} ${visual.colorClass}`}
+                                                >
+                                                    <Icon
+                                                        name={visual.icon}
+                                                        className="text-lg"
+                                                    />
+                                                </div>
+                                                <span className="font-medium text-slate-900 dark:text-white">
+                                                    {habit.name}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                            <span className="px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium">
+                                                {habit.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                            {
+                                                Object.values(
+                                                    habit.frequency
+                                                ).filter(Boolean).length
+                                            }{" "}
+                                            days/week
+                                        </td>
+                                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                            <button
+                                                onClick={() => handleEdit(habit)}
+                                                className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                                title="Edit"
                                             >
                                                 <Icon
-                                                    name={habit.icon}
+                                                    name="edit"
                                                     className="text-lg"
                                                 />
-                                            </div>
-                                            <span className="font-medium text-slate-900 dark:text-white">
-                                                {habit.name}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                        <span className="px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium">
-                                            {habit.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                        {
-                                            Object.values(
-                                                habit.frequency
-                                            ).filter(Boolean).length
-                                        }{" "}
-                                        days/week
-                                    </td>
-                                    <td className="px-6 py-4 text-right flex justify-end gap-2">
-                                        <button
-                                            onClick={() => handleEdit(habit)}
-                                            className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                                            title="Edit"
-                                        >
-                                            <Icon
-                                                name="edit"
-                                                className="text-lg"
-                                            />
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                handleDeleteClick(habit.id)
-                                            }
-                                            className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                            title="Delete"
-                                        >
-                                            <Icon
-                                                name="delete"
-                                                className="text-lg"
-                                            />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    handleDeleteClick(habit.id)
+                                                }
+                                                className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Icon
+                                                    name="delete"
+                                                    className="text-lg"
+                                                />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                )
+                            })
                         )}
                     </tbody>
                 </table>

@@ -19,11 +19,14 @@ export interface IHabit {
     id?: string;
     userId: string;
     name: string;
+    categoryId?: string;
     category: string;
     icon: string;
     iconColorClass: string;
     iconBgClass: string;
     goal: number;
+    startTime?: string;
+    endTime?: string;
     frequency: IUniqueFrequency;
     history: IHabitHistory[];
 }
@@ -41,11 +44,14 @@ export const habitConverter = {
             id: snapshot.id,
             userId: data.userId,
             name: data.name,
+            categoryId: data.categoryId,
             category: data.category,
             icon: data.icon,
             iconColorClass: data.iconColorClass,
             iconBgClass: data.iconBgClass,
             goal: data.goal,
+            startTime: data.startTime,
+            endTime: data.endTime,
             frequency: data.frequency,
             history: data.history || [],
         };
