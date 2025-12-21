@@ -36,6 +36,20 @@ export default function HabitTable({
     weekDays,
     onToggleHabit,
 }: HabitTableProps) {
+    const [isGrouped, setIsGrouped] = React.useState(false);
+    const [showMenu, setShowMenu] = React.useState(false);
+    const menuRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowMenu(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     const handleToggle = (
         habitId: string,
         date: string,
@@ -76,6 +90,60 @@ export default function HabitTable({
             baseColor: null,
         };
     };
+
+    // Helper: Parse time string into minutes from midnight
+    const parseTime = (timeStr?: string): number => {
+        if (!timeStr) return 9999; // No time -> End of list
+
+        // Normalize: remove whitespace
+        const str = timeStr.trim().toLowerCase();
+
+        // Handle 12-hour format with am/pm
+        const match12 = str.match(/(\d+):(\d+)\s*(am|pm)/);
+        if (match12) {
+            let hours = parseInt(match12[1], 10);
+            const minutes = parseInt(match12[2], 10);
+            const meridian = match12[3]; // am or pm
+
+            // 12 AM -> 0 hours, 12 PM -> 12 hours
+            if (hours === 12) {
+                hours = meridian === "am" ? 0 : 12;
+            } else if (meridian === "pm") {
+                hours += 12;
+            }
+            return hours * 60 + minutes;
+        }
+
+        // Handle 24-hour format (HH:mm)
+        const match24 = str.match(/(\d+):(\d+)/);
+        if (match24) {
+            const hours = parseInt(match24[1], 10);
+            const minutes = parseInt(match24[2], 10);
+            return hours * 60 + minutes;
+        }
+
+        return 9999; // Fallback
+    };
+
+    const groupedHabits = React.useMemo(() => {
+        if (!isGrouped) return { "All": habits };
+
+        const groups: Record<string, Habit[]> = {};
+
+        // Sort habits first to ensure consistency within groups
+        const sorted = [...habits].sort((a, b) => {
+            return parseTime(a.startTime) - parseTime(b.startTime);
+        });
+
+        sorted.forEach(habit => {
+            const cat = habit.category || "Uncategorized";
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(habit);
+        });
+
+        // Sort categories? Optional. Key iteration order in JS is insertion order for strings usually.
+        return groups;
+    }, [habits, isGrouped]);
 
     const renderDayCell = (
         status: DayStatus,
@@ -128,10 +196,153 @@ export default function HabitTable({
         }
     };
 
+    const renderHabitRow = (habit: Habit) => {
+        const visual = getHabitVisuals(habit);
+        return (
+            <div
+                key={habit.id}
+                className="grid grid-cols-[minmax(220px,1.8fr)_repeat(7,1fr)_80px] group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+            >
+                <div className="p-4 flex items-center gap-3">
+                    <div
+                        className={`w-8 h-8 rounded ${visual.bgClass} ${visual.colorClass} flex items-center justify-center`}
+                    >
+                        <Icon name={visual.icon} className="text-lg" />
+                    </div>
+                    <div className="flex flex-col min-w-0 pr-2">
+                        <span
+                            className="text-sm font-medium text-slate-900 dark:text-white truncate"
+                            title={habit.name}
+                        >
+                            {habit.name}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500 dark:text-slate-500">
+                            <span className="font-medium text-slate-600 dark:text-slate-400">
+                                {habit.category}
+                            </span>
+                            <span>•</span>
+                            <span>
+                                {habit.startTime && habit.endTime ? `${habit.startTime} - ${habit.endTime}` : "Any time"}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {habit.dailyStatuses.map((day, index) => {
+                    const dayInfo = weekDays[index];
+                    const isToday = dayInfo?.isToday || false;
+                    const isWeekend =
+                        dayInfo?.dayName === "Sat" ||
+                        dayInfo?.dayName === "Sun";
+
+                    const [y, m, d] = day.date.split("-").map(Number);
+                    const localDayIndex = new Date(
+                        y,
+                        m - 1,
+                        d
+                    ).getDay();
+
+                    const dayKeys = [
+                        "sunday",
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                    ] as const;
+                    const dayKey = dayKeys[localDayIndex];
+
+                    const isScheduled = habit.frequency
+                        ? habit.frequency[dayKey]
+                        : true;
+
+                    let cellClass =
+                        "p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center";
+                    if (isWeekend) {
+                        cellClass +=
+                            " bg-slate-100/50 dark:bg-slate-900/50";
+                    }
+                    if (isToday) {
+                        cellClass += " bg-primary/5 dark:bg-primary/10";
+                    }
+
+                    return (
+                        <div key={day.date} className={cellClass}>
+                            {isScheduled ? (
+                                renderDayCell(
+                                    day.status,
+                                    visual.colorClass,
+                                    visual.bgClass,
+                                    isToday,
+                                    (e) =>
+                                        handleToggle(
+                                            habit.id,
+                                            day.date,
+                                            e
+                                        ),
+                                    visual.baseColor
+                                )
+                            ) : (
+                                <div
+                                    className="w-8 h-8 flex items-center justify-center cursor-help"
+                                    title="Not scheduled for this day"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+
+                <div className="p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center">
+                    <span className="text-xs font-semibold text-slate-400">
+                        {habit.weeklyProgress}/{habit.goal}
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
-            <div className="grid grid-cols-[minmax(220px,1.8fr)_repeat(7,1fr)_80px] border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <div className="p-4 flex items-center">Habit</div>
+            <div className="grid grid-cols-[minmax(220px,1.8fr)_repeat(7,1fr)_80px] border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider relative">
+                <div className="p-4 flex items-center justify-between group">
+                    <span>Habit</span>
+                    {/* Settings Dropdown */}
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            onClick={() => setShowMenu(!showMenu)}
+                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            title="Table Options"
+                        >
+                            <Icon name="tune" className="text-sm" />
+                        </button>
+
+                        {showMenu && (
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 z-50 p-1 overflow-hidden">
+                                <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    View Options
+                                </div>
+                                <button
+                                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md transition-colors"
+                                    onClick={() => setIsGrouped(!isGrouped)}
+                                >
+                                    <span>Group by Category</span>
+                                    <div className={cn(
+                                        "w-8 h-4 rounded-full transition-colors relative border border-transparent",
+                                        isGrouped ? "bg-indigo-500 dark:bg-indigo-400" : "bg-slate-200 dark:bg-slate-600"
+                                    )}>
+                                        <div className={cn(
+                                            "absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200",
+                                            isGrouped ? "translate-x-4" : "translate-x-0"
+                                        )} />
+                                    </div>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 {weekDays.map((day) => {
                     const isToday = day.isToday;
@@ -172,123 +383,24 @@ export default function HabitTable({
                 </div>
             </div>
             <div className="divide-y divide-border-light dark:divide-border-dark">
-                {habits.map((habit) => {
-                    const visual = getHabitVisuals(habit);
-                    return (
-                        <div
-                            key={habit.id}
-                            className="grid grid-cols-[minmax(220px,1.8fr)_repeat(7,1fr)_80px] group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                        >
-                            <div className="p-4 flex items-center gap-3">
-                                <div
-                                    className={`w-8 h-8 rounded ${visual.bgClass} ${visual.colorClass} flex items-center justify-center`}
-                                >
-                                    <Icon name={visual.icon} className="text-lg" />
-                                </div>
-                                <div className="flex flex-col min-w-0 pr-2">
-                                    <span
-                                        className="text-sm font-medium text-slate-900 dark:text-white truncate"
-                                        title={habit.name}
-                                    >
-                                        {habit.name}
+                {isGrouped ? (
+                    Object.entries(groupedHabits).map(([category, items]) => (
+                        <React.Fragment key={category}>
+                            {/* Category Header */}
+                            <div className="col-span-full bg-slate-50/30 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800">
+                                <div className="px-4 py-1.5 flex items-center gap-2">
+                                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                        {category}
                                     </span>
-                                    <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500 dark:text-slate-500">
-                                        <span className="font-medium text-slate-600 dark:text-slate-400">
-                                            {habit.category}
-                                        </span>
-                                        <span>•</span>
-                                        <span>
-                                            {habit.startTime && habit.endTime ? `${habit.startTime} - ${habit.endTime}` : "Any time"}
-                                        </span>
-                                    </div>
+                                    <span className="text-[9px] text-slate-400">({items.length})</span>
                                 </div>
                             </div>
-
-                            {habit.dailyStatuses.map((day, index) => {
-                                // Find corresponding weekDay info for styling (e.g. isToday, isWeekend)
-                                // Assuming dailyStatuses matches weekDays order
-                                const dayInfo = weekDays[index];
-                                const isToday = dayInfo?.isToday || false;
-                                // Check for weekend (Sat/Sun)
-                                const isWeekend =
-                                    dayInfo?.dayName === "Sat" ||
-                                    dayInfo?.dayName === "Sun";
-
-                                // Check frequency for this day (Sun=0, Mon=1, etc.)
-                                // weekDays are sorted by date, need to find day index (0-6)
-                                // Assuming frequency array matches [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
-                                // Parse date strictly from string to avoid timezone shifts (e.g. UTC->Local)
-                                const [y, m, d] = day.date.split("-").map(Number);
-                                const localDayIndex = new Date(
-                                    y,
-                                    m - 1,
-                                    d
-                                ).getDay(); // 0=Sun, 1=Mon...
-
-                                const dayKeys = [
-                                    "sunday",
-                                    "monday",
-                                    "tuesday",
-                                    "wednesday",
-                                    "thursday",
-                                    "friday",
-                                    "saturday",
-                                ] as const;
-                                const dayKey = dayKeys[localDayIndex];
-
-                                const isScheduled = habit.frequency
-                                    ? habit.frequency[dayKey]
-                                    : true;
-
-                                let cellClass =
-                                    "p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center";
-                                if (isWeekend) {
-                                    cellClass +=
-                                        " bg-slate-100/50 dark:bg-slate-900/50";
-                                }
-                                if (isToday) {
-                                    cellClass += " bg-primary/5 dark:bg-primary/10";
-                                }
-                                // if (!isScheduled) {
-                                //     cellClass += " opacity-40"; // Dim non-scheduled days
-                                // } Removed to keep border opaque
-
-                                return (
-                                    <div key={day.date} className={cellClass}>
-                                        {isScheduled ? (
-                                            renderDayCell(
-                                                day.status,
-                                                visual.colorClass,
-                                                visual.bgClass,
-                                                isToday,
-                                                (e) =>
-                                                    handleToggle(
-                                                        habit.id,
-                                                        day.date,
-                                                        e
-                                                    ),
-                                                visual.baseColor
-                                            )
-                                        ) : (
-                                            <div
-                                                className="w-8 h-8 flex items-center justify-center cursor-help"
-                                                title="Not scheduled for this day"
-                                            >
-                                                <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-
-                            <div className="p-3 border-l border-border-light dark:border-border-dark flex items-center justify-center">
-                                <span className="text-xs font-semibold text-slate-400">
-                                    {habit.weeklyProgress}/{habit.goal}
-                                </span>
-                            </div>
-                        </div>
-                    )
-                })}
+                            {items.map(habit => renderHabitRow(habit))}
+                        </React.Fragment>
+                    ))
+                ) : (
+                    habits.map((habit) => renderHabitRow(habit))
+                )}
             </div>
         </div>
     );

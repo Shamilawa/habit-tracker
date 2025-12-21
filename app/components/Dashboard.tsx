@@ -42,6 +42,40 @@ const COLOR_MAP: Record<string, string> = {
     cyan: "bg-cyan-600 dark:bg-cyan-400",
 };
 
+// Helper: Parse time string into minutes from midnight
+const parseTime = (timeStr?: string): number => {
+    if (!timeStr) return 9999; // No time -> End of list
+
+    // Normalize: remove whitespace
+    const str = timeStr.trim().toLowerCase();
+
+    // Handle 12-hour format with am/pm
+    const match12 = str.match(/(\d+):(\d+)\s*(am|pm)/);
+    if (match12) {
+        let hours = parseInt(match12[1], 10);
+        const minutes = parseInt(match12[2], 10);
+        const meridian = match12[3]; // am or pm
+
+        // 12 AM -> 0 hours, 12 PM -> 12 hours
+        if (hours === 12) {
+            hours = meridian === "am" ? 0 : 12;
+        } else if (meridian === "pm") {
+            hours += 12;
+        }
+        return hours * 60 + minutes;
+    }
+
+    // Handle 24-hour format (HH:mm)
+    const match24 = str.match(/(\d+):(\d+)/);
+    if (match24) {
+        const hours = parseInt(match24[1], 10);
+        const minutes = parseInt(match24[2], 10);
+        return hours * 60 + minutes;
+    }
+
+    return 9999; // Fallback
+};
+
 interface DashboardProps {
     initialHabits: Habit[];
 }
@@ -51,6 +85,7 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
     const { user } = useAuth();
     const [date, setDate] = useState(new Date());
     const [habits, setHabits] = useState<Habit[]>(initialHabits);
+    const [isGrouped, setIsGrouped] = useState(false);
     const [journalContent, setJournalContent] = useState("");
     const [isJournalLoading, setIsJournalLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -142,14 +177,22 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         const filtered = habits.filter((h) => (h.frequency as any)[dayName]);
 
         return filtered.sort((a, b) => {
-            if (a.startTime && b.startTime) {
-                return a.startTime.localeCompare(b.startTime);
-            }
-            if (a.startTime) return -1;
-            if (b.startTime) return 1;
-            return 0;
+            const timeA = parseTime(a.startTime);
+            const timeB = parseTime(b.startTime);
+            return timeA - timeB;
         });
     }, [habits, date]);
+
+    const groupedHabits = useMemo(() => {
+        if (!isGrouped) return {};
+        const groups: Record<string, Habit[]> = {};
+        activeHabits.forEach(h => {
+            const cat = h.category || "Uncategorized";
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(h);
+        });
+        return groups;
+    }, [activeHabits, isGrouped]);
 
     const getHabitStatus = useCallback((habit: Habit) => {
         const entry = habit.dailyStatuses?.find((h) => h.date === dateString);
@@ -251,6 +294,52 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
         }
     };
 
+    const renderHabitRow = (habit: Habit) => {
+        const status = getHabitStatus(habit);
+        const isCompleted = status === "completed";
+        const isFailed = status === "failed";
+        const visual = getHabitVisuals(habit);
+
+        return (
+            <div key={habit.id} className="group flex items-center justify-between p-3 bg-white dark:bg-surface-dark rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center transition-colors", visual.bgClass, visual.colorClass)}>
+                        <Icon name={visual.icon} className="text-xl" />
+                    </div>
+                    <div>
+                        <h3 className="font-medium text-slate-900 dark:text-white text-sm">{habit.name}</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <span className="font-medium text-slate-600 dark:text-slate-300">
+                                {habit.category}
+                            </span>
+                            <span>•</span>
+                            <span>
+                                {habit.startTime && habit.endTime ? `${habit.startTime} - ${habit.endTime}` : "Any time"}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Interactive Toggle */}
+                <button
+                    onClick={() => handleToggle(habit.id)}
+                    className={cn(
+                        "w-8 h-8 rounded-md flex items-center justify-center transition-all",
+                        isCompleted
+                            ? `${visual.baseColor?.solidClass || "bg-indigo-600 dark:bg-indigo-400"} text-white shadow-sm border border-transparent scale-100`
+                            : isFailed
+                                ? "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-500"
+                                : `bg-white dark:bg-surface-dark border-2 border-slate-300 dark:border-slate-600 text-transparent ${visual.baseColor?.hoverBorderClass || "hover:border-primary dark:hover:border-primary-dark"}`
+                    )}
+                >
+                    {isCompleted && <Icon name="check" className="text-sm font-bold" />}
+                    {isFailed && <Icon name="close" className="text-sm font-bold" />}
+                    {!isCompleted && !isFailed && <Icon name="check" className={cn("text-sm font-bold opacity-0 hover:opacity-100 transition-opacity", visual.colorClass)} />}
+                </button>
+            </div>
+        );
+    };
+
     const completedCount = activeHabits.filter(h => getHabitStatus(h) === "completed").length;
     const progressPercentage = activeHabits.length > 0 ? Math.round((completedCount / activeHabits.length) * 100) : 0;
 
@@ -311,6 +400,32 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Routine Summary</h2>
+                            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+                                <button
+                                    onClick={() => setIsGrouped(false)}
+                                    className={cn(
+                                        "px-3 py-1 rounded-md transition-all text-[10px] font-medium flex items-center justify-center",
+                                        !isGrouped
+                                            ? "bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    )}
+                                    title="List View"
+                                >
+                                    List
+                                </button>
+                                <button
+                                    onClick={() => setIsGrouped(true)}
+                                    className={cn(
+                                        "px-3 py-1 rounded-md transition-all text-[10px] font-medium flex items-center justify-center",
+                                        isGrouped
+                                            ? "bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    )}
+                                    title="Group by Category"
+                                >
+                                    Group
+                                </button>
+                            </div>
                         </div>
 
                         <div className="space-y-2">
@@ -319,51 +434,20 @@ export default function Dashboard({ initialHabits }: DashboardProps) {
                                     No habits scheduled for today.
                                 </div>
                             ) : (
-                                activeHabits.map((habit) => {
-                                    const status = getHabitStatus(habit);
-                                    const isCompleted = status === "completed";
-                                    const isFailed = status === "failed";
-                                    const visual = getHabitVisuals(habit);
-
-                                    return (
-                                        <div key={habit.id} className="group flex items-center justify-between p-3 bg-white dark:bg-surface-dark rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all">
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center transition-colors", visual.bgClass, visual.colorClass)}>
-                                                    <Icon name={visual.icon} className="text-xl" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-medium text-slate-900 dark:text-white text-sm">{habit.name}</h3>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                        <span className="font-medium text-slate-600 dark:text-slate-300">
-                                                            {habit.category}
-                                                        </span>
-                                                        <span>•</span>
-                                                        <span>
-                                                            {habit.startTime && habit.endTime ? `${habit.startTime} - ${habit.endTime}` : "Any time"}
-                                                        </span>
-                                                    </p>
-                                                </div>
+                                isGrouped ? (
+                                    Object.entries(groupedHabits).map(([category, items]) => (
+                                        <div key={category} className="space-y-2">
+                                            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide px-1 pt-2">
+                                                {category}
+                                            </h3>
+                                            <div className="space-y-2">
+                                                {items.map(renderHabitRow)}
                                             </div>
-
-                                            {/* Interactive Toggle */}
-                                            <button
-                                                onClick={() => handleToggle(habit.id)}
-                                                className={cn(
-                                                    "w-8 h-8 rounded-md flex items-center justify-center transition-all",
-                                                    isCompleted
-                                                        ? `${visual.baseColor?.solidClass || "bg-indigo-600 dark:bg-indigo-400"} text-white shadow-sm border border-transparent scale-100`
-                                                        : isFailed
-                                                            ? "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-500"
-                                                            : `bg-white dark:bg-surface-dark border-2 border-slate-300 dark:border-slate-600 text-transparent ${visual.baseColor?.hoverBorderClass || "hover:border-primary dark:hover:border-primary-dark"}`
-                                                )}
-                                            >
-                                                {isCompleted && <Icon name="check" className="text-sm font-bold" />}
-                                                {isFailed && <Icon name="close" className="text-sm font-bold" />}
-                                                {!isCompleted && !isFailed && <Icon name="check" className={cn("text-sm font-bold opacity-0 hover:opacity-100 transition-opacity", visual.colorClass)} />}
-                                            </button>
                                         </div>
-                                    );
-                                })
+                                    ))
+                                ) : (
+                                    activeHabits.map(renderHabitRow)
+                                )
                             )}
                         </div>
                     </div>
